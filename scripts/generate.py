@@ -9,6 +9,7 @@ Scoring rules:
       EXCEPT if implementer == creator team: only +SP/2
 """
 
+import json
 import os
 import sys
 import requests
@@ -191,23 +192,52 @@ def calculate_scores(teams, user_to_team, all_issues):
 
     return scores
 
-# ── HTML ────────────────────────────────────────────────────────────────────────
+# ── Position Tracking ────────────────────────────────────────────────────────────
 
-def generate_html(teams, scores, all_issues, generated_at):
-    ranked = sorted(
+def load_previous_positions(out_dir):
+    """Load previous team positions from positions.json. Returns {} if not found."""
+    path = os.path.join(out_dir, "positions.json")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_positions(positions, out_dir):
+    """Persist current team positions to positions.json."""
+    path = os.path.join(out_dir, "positions.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(positions, f, indent=2)
+
+def rank_teams(teams, scores):
+    """Return team indices sorted by total score descending."""
+    return sorted(
         range(len(teams)),
         key=lambda i: scores[i]["creation"] + scores[i]["implementation"],
         reverse=True,
     )
 
+# ── HTML ────────────────────────────────────────────────────────────────────────
+
+def generate_html(teams, scores, all_issues, generated_at, ranked, prev_positions):
     rows = ""
     for pos, team_id in enumerate(ranked):
-        team      = teams[team_id]
-        s         = scores[team_id]
-        total     = s["creation"] + s["implementation"]
-        rank_num  = pos + 1
-        rank_cls  = f"rank-{rank_num}" if rank_num <= 3 else ""
-        row_cls   = f"row-top-{rank_num}" if rank_num <= 3 else ""
+        team     = teams[team_id]
+        s        = scores[team_id]
+        total    = s["creation"] + s["implementation"]
+        rank_num = pos + 1
+        rank_cls = f"rank-{rank_num}" if rank_num <= 3 else ""
+        row_cls  = f"row-top-{rank_num}" if rank_num <= 3 else ""
+
+        # Trend vs previous run
+        prev_rank = prev_positions.get(team["name"])
+        if prev_rank is None:
+            trend_html = '<span class="trend trend-new" aria-label="new">&#x2022;</span>'
+        elif prev_rank > rank_num:
+            trend_html = '<span class="trend trend-up" aria-label="moved up">&#9650;</span>'
+        elif prev_rank < rank_num:
+            trend_html = '<span class="trend trend-down" aria-label="moved down">&#9660;</span>'
+        else:
+            trend_html = '<span class="trend trend-same" aria-label="no change">&mdash;</span>'
 
         members_html = "".join(
             f'<a href="https://github.com/{m}" target="_blank" class="member" aria-label="{m}">'
@@ -219,7 +249,12 @@ def generate_html(teams, scores, all_issues, generated_at):
 
         rows += f"""
             <tr class="{row_cls}">
-              <td class="col-rank"><span class="rank-badge {rank_cls}">{rank_num}</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge {rank_cls}">{rank_num}</span>
+                  {trend_html}
+                </div>
+              </td>
               <td class="col-team"><div class="team-members">{members_html}</div></td>
               <td class="col-pts">
                 <span class="pts-value">{s["creation"]:.2f}</span>
@@ -236,7 +271,7 @@ def generate_html(teams, scores, all_issues, generated_at):
     total_sp   = sum(i["story_points"] for i in all_issues)
 
     return f"""<!DOCTYPE html>
-<html lang="es">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -247,7 +282,8 @@ def generate_html(teams, scores, all_issues, generated_at):
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
-    :root {{
+    /* Dark theme (default) */
+    :root, [data-theme="dark"] {{
       --bg:            #0D1117;
       --surface:       #161B22;
       --surface-hover: #1C2128;
@@ -258,9 +294,28 @@ def generate_html(teams, scores, all_issues, generated_at):
       --text-muted:    #6E7681;
       --accent:        #2F81F7;
       --green:         #3FB950;
+      --red:           #F85149;
       --gold:          #D4A017;
       --silver:        #A0AEC0;
       --bronze:        #B87333;
+    }}
+
+    /* Light theme */
+    [data-theme="light"] {{
+      --bg:            #FFFFFF;
+      --surface:       #F6F8FA;
+      --surface-hover: #EFF2F5;
+      --border:        #D0D7DE;
+      --border-subtle: #EAEEF2;
+      --text-primary:  #1F2328;
+      --text-secondary:#656D76;
+      --text-muted:    #9198A1;
+      --accent:        #0969DA;
+      --green:         #1A7F37;
+      --red:           #CF222E;
+      --gold:          #9A6700;
+      --silver:        #57606A;
+      --bronze:        #6E3B1A;
     }}
 
     body {{
@@ -270,16 +325,24 @@ def generate_html(teams, scores, all_issues, generated_at):
       min-height: 100vh;
       font-size: 16px;
       line-height: 1.5;
+      transition: background 200ms ease, color 200ms ease;
     }}
 
+    /* Header */
     header {{
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 20px 32px;
+      padding: 16px 32px;
     }}
     .header-inner {{
       max-width: 900px;
       margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }}
+    .header-left {{
       display: flex;
       align-items: baseline;
       gap: 14px;
@@ -297,9 +360,42 @@ def generate_html(teams, scores, all_issues, generated_at):
       color: var(--text-muted);
     }}
 
+    /* Theme toggle */
+    .theme-btn {{
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-family: 'Barlow', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+      white-space: nowrap;
+    }}
+    .theme-btn:hover {{
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--surface-hover);
+    }}
+    .theme-btn svg {{
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }}
+    .icon-sun  {{ display: none; }}
+    .icon-moon {{ display: block; }}
+    [data-theme="light"] .icon-sun  {{ display: block; }}
+    [data-theme="light"] .icon-moon {{ display: none; }}
+
+    /* Layout */
     .container {{
       max-width: 900px;
-      margin: 32px auto;
+      margin: 28px auto;
       padding: 0 20px;
     }}
 
@@ -376,17 +472,38 @@ def generate_html(teams, scores, all_issues, generated_at):
     .row-top-2 td:first-child {{ box-shadow: inset 3px 0 0 var(--silver); }}
     .row-top-3 td:first-child {{ box-shadow: inset 3px 0 0 var(--bronze); }}
 
-    /* Rank */
-    .col-rank {{ width: 56px; text-align: center; }}
+    /* Rank cell */
+    .col-rank {{ width: 68px; }}
+    .rank-cell {{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }}
     .rank-badge {{
       font-family: 'Barlow Condensed', sans-serif;
       font-size: 1.05rem;
       font-weight: 700;
       color: var(--text-muted);
+      min-width: 20px;
+      text-align: right;
     }}
     .rank-badge.rank-1 {{ color: var(--gold); }}
     .rank-badge.rank-2 {{ color: var(--silver); }}
     .rank-badge.rank-3 {{ color: var(--bronze); }}
+
+    /* Trend indicators */
+    .trend {{
+      font-size: 0.55rem;
+      font-weight: 700;
+      line-height: 1;
+      width: 12px;
+      text-align: center;
+    }}
+    .trend-up   {{ color: var(--green); }}
+    .trend-down {{ color: var(--red); }}
+    .trend-same {{ color: var(--text-muted); font-size: 0.7rem; }}
+    .trend-new  {{ color: var(--accent); font-size: 0.5rem; }}
 
     /* Team */
     .col-team {{ font-weight: 500; }}
@@ -488,8 +605,8 @@ def generate_html(teams, scores, all_issues, generated_at):
 
     @media (max-width: 600px) {{
       .stats {{ grid-template-columns: 1fr 1fr; }}
-      header {{ padding: 16px; }}
-      .header-inner {{ flex-direction: column; gap: 4px; }}
+      header {{ padding: 12px 16px; }}
+      .header-left {{ flex-direction: column; gap: 2px; }}
       .container {{ padding: 0 12px; margin: 20px auto; }}
     }}
   </style>
@@ -497,19 +614,32 @@ def generate_html(teams, scores, all_issues, generated_at):
 <body>
   <header>
     <div class="header-inner">
-      <h1>FLL Scoreboard</h1>
-      <span class="org">UdL EPS SoftArch Igualada</span>
+      <div class="header-left">
+        <h1>FLL Scoreboard</h1>
+        <span class="org">UdL EPS SoftArch Igualada</span>
+      </div>
+      <button class="theme-btn" onclick="toggleTheme()" aria-label="Toggle theme">
+        <!-- Sun icon (shown in light mode) -->
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <!-- Moon icon (shown in dark mode) -->
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <span class="btn-label">Light</span>
+      </button>
     </div>
   </header>
   <div class="container">
     <div class="stats">
       <div class="stat">
         <div class="value">{len(teams)}</div>
-        <div class="label">Equipos</div>
+        <div class="label">Teams</div>
       </div>
       <div class="stat">
         <div class="value">{total_done}</div>
-        <div class="label">Issues en Done</div>
+        <div class="label">Done Issues</div>
       </div>
       <div class="stat">
         <div class="value">{total_sp:.1f}</div>
@@ -522,9 +652,9 @@ def generate_html(teams, scores, all_issues, generated_at):
         <thead>
           <tr>
             <th class="col-rank">Pos</th>
-            <th>Equipo</th>
-            <th class="align-right">Pts Creacion</th>
-            <th class="align-right">Pts Implementacion</th>
+            <th>Team</th>
+            <th class="align-right">Creation Pts</th>
+            <th class="align-right">Implementation Pts</th>
             <th class="align-right">Total</th>
           </tr>
         </thead>
@@ -534,17 +664,36 @@ def generate_html(teams, scores, all_issues, generated_at):
     </div>
 
     <div class="rules">
-      <h2>Reglas de puntuacion</h2>
+      <h2>Scoring Rules</h2>
       <ul>
-        <li>Crear una issue (que acabe en Done): <strong>+0.25 pts</strong> al equipo creador</li>
-        <li>Implementar una issue de otro equipo: <strong>+SP completos</strong> al equipo implementador</li>
-        <li>Implementar una issue propia: <strong>+SP/2</strong> al equipo (mitad de los story points)</li>
-        <li>Solo cuentan las issues en estado <strong>Done</strong> (cerradas por PR mergeado)</li>
+        <li>Creating an issue (that ends up Done): <strong>+0.25 pts</strong> to the creator's team</li>
+        <li>Implementing another team's issue: <strong>+full SP</strong> to the implementer's team</li>
+        <li>Implementing your own issue: <strong>+SP/2</strong> to your team (half story points)</li>
+        <li>Only issues with status <strong>Done</strong> count (closed by merged PR)</li>
       </ul>
     </div>
 
-    <p class="updated">Ultima actualizacion: {generated_at}</p>
+    <p class="updated">Last updated: {generated_at}</p>
   </div>
+  <script>
+    (function () {{
+      var saved = localStorage.getItem('fll-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+      var btn = document.querySelector('.btn-label');
+      function updateLabel() {{
+        var t = document.documentElement.getAttribute('data-theme');
+        btn.textContent = t === 'dark' ? 'Light' : 'Dark';
+      }}
+      updateLabel();
+      window.toggleTheme = function () {{
+        var cur = document.documentElement.getAttribute('data-theme');
+        var next = cur === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('fll-theme', next);
+        updateLabel();
+      }};
+    }})();
+  </script>
 </body>
 </html>"""
 
@@ -565,11 +714,17 @@ def main():
 
     scores = calculate_scores(teams, user_to_team, all_issues)
 
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    html = generate_html(teams, scores, all_issues, generated_at)
-
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs")
     os.makedirs(out_dir, exist_ok=True)
+
+    ranked = rank_teams(teams, scores)
+    prev_positions = load_previous_positions(out_dir)
+    current_positions = {teams[team_id]["name"]: pos + 1 for pos, team_id in enumerate(ranked)}
+    save_positions(current_positions, out_dir)
+
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    html = generate_html(teams, scores, all_issues, generated_at, ranked, prev_positions)
+
     out_path = os.path.join(out_dir, "index.html")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(html)
