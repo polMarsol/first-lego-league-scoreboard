@@ -345,6 +345,27 @@
       background: var(--border);
     }
 
+    /* ── Shimmer top 3 ───────────────────────────────────────── */
+    @keyframes shimmer-pass {
+      0%   { background-position: -100% center; }
+      100% { background-position: 200% center; }
+    }
+    .row-top-1 {
+      background-image: linear-gradient(100deg, transparent 20%, rgba(212,160,23,0.11) 50%, transparent 80%);
+      background-size: 250% 100%;
+      animation: shimmer-pass 3s ease-in-out infinite;
+    }
+    .row-top-2 {
+      background-image: linear-gradient(100deg, transparent 20%, rgba(160,174,192,0.09) 50%, transparent 80%);
+      background-size: 250% 100%;
+      animation: shimmer-pass 4s ease-in-out 0.8s infinite;
+    }
+    .row-top-3 {
+      background-image: linear-gradient(100deg, transparent 20%, rgba(184,115,51,0.09) 50%, transparent 80%);
+      background-size: 250% 100%;
+      animation: shimmer-pass 3.5s ease-in-out 1.6s infinite;
+    }
+
     .updated {
       text-align: center;
       color: var(--text-muted);
@@ -888,7 +909,7 @@
     </div>
 
     <div class="live-row">
-      <span class="updated">Last updated: 2026-04-15 21:58 UTC</span>
+      <span class="updated">Last updated: 2026-04-15 22:06 UTC</span>
       <span class="live-indicator">
         <span class="live-dot"></span>
         Next update in <span id="countdown">--:--</span>
@@ -1314,6 +1335,79 @@
       }
       tick();
       setInterval(tick, 1000);
+    })();
+  </script>
+  <script>
+    (function () {
+      // ── Cursor glow ───────────────────────────────────────────────────────
+      var glow = document.createElement('div');
+      glow.style.cssText = [
+        'position:fixed', 'pointer-events:none', 'z-index:1',
+        'width:520px', 'height:520px', 'border-radius:50%',
+        'background:radial-gradient(circle,rgba(47,129,247,0.07) 0%,transparent 68%)',
+        'transform:translate(-50%,-50%)', 'transition:opacity 400ms ease',
+        'will-change:left,top', 'opacity:0'
+      ].join(';');
+      document.body.appendChild(glow);
+
+      var mx = window.innerWidth / 2, my = window.innerHeight / 2;
+      var gx = mx, gy = my;
+      var inside = false;
+      document.addEventListener('mousemove', function (e) { mx = e.clientX; my = e.clientY; inside = true; });
+      document.addEventListener('mouseleave', function () { inside = false; });
+
+      // ── Particles canvas ──────────────────────────────────────────────────
+      var cvs = document.createElement('canvas');
+      cvs.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:0;';
+      document.body.prepend(cvs);
+      var pc = cvs.getContext('2d');
+
+      function resize() { cvs.width = window.innerWidth; cvs.height = window.innerHeight; }
+      resize();
+      window.addEventListener('resize', resize);
+
+      var pts = [];
+      for (var i = 0; i < 18; i++) {
+        pts.push({
+          x:  Math.random() * window.innerWidth,
+          y:  Math.random() * window.innerHeight,
+          r:  Math.random() * 1.2 + 0.4,
+          vx: (Math.random() - 0.5) * 0.22,
+          vy: -(Math.random() * 0.14 + 0.04),
+          o:  Math.random() * 0.3 + 0.08
+        });
+      }
+
+      // ── Shared animation loop ─────────────────────────────────────────────
+      function loop() {
+        var dark = document.documentElement.getAttribute('data-theme') !== 'light';
+
+        // Cursor glow — smooth lerp follow
+        gx += (mx - gx) * 0.07;
+        gy += (my - gy) * 0.07;
+        glow.style.left    = gx + 'px';
+        glow.style.top     = gy + 'px';
+        glow.style.opacity = dark && inside ? '1' : '0';
+
+        // Particles — only in dark mode
+        pc.clearRect(0, 0, cvs.width, cvs.height);
+        if (dark) {
+          for (var j = 0; j < pts.length; j++) {
+            var p = pts[j];
+            pc.beginPath();
+            pc.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            pc.fillStyle = 'rgba(255,255,255,' + p.o + ')';
+            pc.fill();
+            p.x += p.vx; p.y += p.vy;
+            if (p.y < -3) { p.y = cvs.height + 3; p.x = Math.random() * cvs.width; }
+            if (p.x < -3) p.x = cvs.width  + 3;
+            if (p.x > cvs.width + 3) p.x = -3;
+          }
+        }
+
+        requestAnimationFrame(loop);
+      }
+      loop();
     })();
   </script>
 </body>
