@@ -2016,7 +2016,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
           (assigneeImgs ? '<div class="issue-assignees">' + assigneeImgs + '</div>' : '') +
           (token
             ? '<button class="claim-btn' + btnClass + '"' + btnDisabled +
-              ' onclick="claimIssue(\'' + issue.repo + '\',' + issue.number + ',this)">'+btnText+'</button>'
+              ' onclick="claimIssue(&#39;' + issue.repo + '&#39;,' + issue.number + ',this)">'+btnText+'</button>'
             : '<button class="claim-btn" onclick="loginWithGitHub()">Sign in</button>'
           ) +
         '</div>';
