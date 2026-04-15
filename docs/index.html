@@ -11,19 +11,19 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* Dark theme (default) */
+    /* Dark theme — Linear.app inspired */
     :root, [data-theme="dark"] {
-      --bg:            #0D1117;
-      --surface:       #161B22;
-      --surface-hover: #1C2128;
-      --border:        #30363D;
-      --border-subtle: #21262D;
-      --text-primary:  #E6EDF3;
-      --text-secondary:#8B949E;
-      --text-muted:    #6E7681;
-      --accent:        #2F81F7;
-      --green:         #3FB950;
-      --red:           #F85149;
+      --bg:            #0A0A0A;
+      --surface:       #141414;
+      --surface-hover: #1C1C1C;
+      --border:        #222222;
+      --border-subtle: #1A1A1A;
+      --text-primary:  #F5F5F5;
+      --text-secondary:#8A8A8A;
+      --text-muted:    #525252;
+      --accent:        #5E6AD2;
+      --green:         #4CC38A;
+      --red:           #E5484D;
       --gold:          #D4A017;
       --silver:        #A0AEC0;
       --bronze:        #B87333;
@@ -139,7 +139,7 @@
     /* Stats */
     .stats {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 12px;
       margin-bottom: 20px;
     }
@@ -305,7 +305,7 @@
       font-weight: 700;
       font-variant-numeric: tabular-nums;
     }
-    .balance-ok   { color: var(--green); }
+    .balance-ok   { color: var(--accent); }
     .balance-debt { color: var(--red); }
 
     /* Rules */
@@ -347,23 +347,24 @@
 
     /* ── Shimmer top 3 ───────────────────────────────────────── */
     @keyframes shimmer-pass {
-      0%   { background-position: -100% center; }
-      100% { background-position: 200% center; }
+      0%   { background-position: -100% center; }  /* off-screen left  */
+      30%  { background-position: 200% center; }   /* off-screen right */
+      100% { background-position: 200% center; }   /* hold off-screen until reset */
     }
     .row-top-1 {
       background-image: linear-gradient(100deg, transparent 20%, rgba(212,160,23,0.11) 50%, transparent 80%);
       background-size: 250% 100%;
-      animation: shimmer-pass 3s ease-in-out infinite;
+      animation: shimmer-pass 4s linear infinite;
     }
     .row-top-2 {
       background-image: linear-gradient(100deg, transparent 20%, rgba(160,174,192,0.09) 50%, transparent 80%);
       background-size: 250% 100%;
-      animation: shimmer-pass 4s ease-in-out 0.8s infinite;
+      animation: shimmer-pass 5s linear 1.3s infinite;
     }
     .row-top-3 {
       background-image: linear-gradient(100deg, transparent 20%, rgba(184,115,51,0.09) 50%, transparent 80%);
       background-size: 250% 100%;
-      animation: shimmer-pass 3.5s ease-in-out 1.6s infinite;
+      animation: shimmer-pass 4.5s linear 2.6s infinite;
     }
 
     .updated {
@@ -598,7 +599,7 @@
     }
 
     @media (max-width: 900px) {
-      .stats { grid-template-columns: repeat(3, 1fr); }
+      .stats { grid-template-columns: repeat(3, 1fr); }  /* already 3, no change needed */
     }
     @media (max-width: 600px) {
       .stats { grid-template-columns: 1fr 1fr; }
@@ -649,14 +650,6 @@
       <div class="stat">
         <div class="value">108.2</div>
         <div class="label">Story Points</div>
-      </div>
-      <div class="stat">
-        <div class="value">11.2</div>
-        <div class="label">Budget Available (SP)</div>
-      </div>
-      <div class="stat">
-        <div class="value" style="color: var(--green)">0</div>
-        <div class="label">Teams in Debt</div>
       </div>
     </div>
 
@@ -909,7 +902,7 @@
     </div>
 
     <div class="live-row">
-      <span class="updated">Last updated: 2026-04-15 22:10 UTC</span>
+      <span class="updated">Last updated: 2026-04-15 22:21 UTC</span>
       <span class="live-indicator">
         <span class="live-dot"></span>
         Next update in <span id="countdown">--:--</span>
@@ -1344,7 +1337,7 @@
       glow.style.cssText = [
         'position:fixed', 'pointer-events:none', 'z-index:1',
         'width:520px', 'height:520px', 'border-radius:50%',
-        'background:radial-gradient(circle,rgba(47,129,247,0.07) 0%,transparent 68%)',
+        'background:radial-gradient(circle,rgba(94,106,210,0.09) 0%,transparent 68%)',
         'transform:translate(-50%,-50%)', 'transition:opacity 400ms ease',
         'will-change:left,top', 'opacity:0'
       ].join(';');
@@ -1366,16 +1359,27 @@
       resize();
       window.addEventListener('resize', resize);
 
+      // Star colors: white, pale blue, pale yellow, pale violet
+      var starColors = [
+        '255,255,255', '200,220,255', '255,240,180', '180,180,255', '220,255,220'
+      ];
       var pts = [];
-      for (var i = 0; i < 18; i++) {
+      for (var i = 0; i < 55; i++) {
+        var big = Math.random() < 0.12; // 12% are slightly bigger "bright stars"
         pts.push({
-          x:  Math.random() * window.innerWidth,
-          y:  Math.random() * window.innerHeight,
-          r:  Math.random() * 1.2 + 0.4,
-          vx: (Math.random() - 0.5) * 0.22,
-          vy: -(Math.random() * 0.14 + 0.04),
-          o:  Math.random() * 0.3 + 0.08
+          x:    Math.random() * window.innerWidth,
+          y:    Math.random() * window.innerHeight,
+          r:    big ? Math.random() * 1.2 + 0.9 : Math.random() * 0.7 + 0.2,
+          vx:   (Math.random() - 0.5) * 0.12,
+          vy:   -(Math.random() * 0.08 + 0.02),
+          o:    Math.random() * 0.45 + 0.1,
+          oBase:0,           // set below
+          oAmp: big ? 0.25 : Math.random() * 0.15, // twinkle amplitude
+          oSpd: Math.random() * 0.02 + 0.005,      // twinkle speed
+          oPhase: Math.random() * Math.PI * 2,
+          col:  starColors[Math.floor(Math.random() * starColors.length)]
         });
+        pts[pts.length-1].oBase = pts[pts.length-1].o;
       }
 
       // ── Shared animation loop ─────────────────────────────────────────────
@@ -1394,9 +1398,13 @@
         if (dark) {
           for (var j = 0; j < pts.length; j++) {
             var p = pts[j];
+            // Twinkle: oscillate opacity around base
+            p.oPhase += p.oSpd;
+            var alpha = p.oBase + Math.sin(p.oPhase) * p.oAmp;
+            if (alpha < 0) alpha = 0;
             pc.beginPath();
             pc.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            pc.fillStyle = 'rgba(255,255,255,' + p.o + ')';
+            pc.fillStyle = 'rgba(' + p.col + ',' + alpha + ')';
             pc.fill();
             p.x += p.vx; p.y += p.vy;
             if (p.y < -3) { p.y = cvs.height + 3; p.x = Math.random() * cvs.width; }
