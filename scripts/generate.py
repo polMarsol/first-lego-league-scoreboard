@@ -34,6 +34,8 @@ STORY_POINTS_MAP = {
     "story-points-4":    4.00,
 }
 
+COIN_LABEL = "\U0001fa99"  # 🪙 — professor's budget label
+
 # ── Teams ───────────────────────────────────────────────────────────────────────
 
 def fetch_teams():
@@ -105,9 +107,15 @@ query($org: String!, $projectNumber: Int!, $cursor: String) {
 }
 """
 
-def fetch_done_issues():
-    """Fetch all project items with Status='Done' that have story points."""
+def fetch_project_issues():
+    """Fetch all project items in a single pass.
+
+    Returns:
+        done_issues  — Status='Done' + has SP label  (used for scoring)
+        coin_issues  — has 🪙 label + has SP label, any status  (used for balance)
+    """
     done = []
+    coin = []
     cursor = None
 
     while True:
@@ -126,40 +134,42 @@ def fetch_done_issues():
         page_info = items_data.get("pageInfo", {})
 
         for item in nodes:
-            # Only items with Status == "Done"
-            status = (item.get("status") or {}).get("name", "")
-            if "done" not in status.lower():
-                continue
-
             content = item.get("content") or {}
             if not content.get("number"):
                 continue  # Skip non-issue items (e.g. draft notes)
 
-            # Story points from labels
             labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
             sp = next((STORY_POINTS_MAP[lb] for lb in labels if lb in STORY_POINTS_MAP), None)
             if sp is None:
-                continue  # No valid story-points label → skip
+                continue  # No SP label → irrelevant for both scoring and balance
 
-            done.append({
+            issue = {
                 "number":       content["number"],
                 "title":        content["title"],
                 "repo":         (content.get("repository") or {}).get("name", ""),
                 "creator":      (content.get("author") or {}).get("login"),
                 "assignees":    [a["login"] for a in content.get("assignees", {}).get("nodes", [])],
                 "story_points": sp,
-            })
+            }
+
+            status = (item.get("status") or {}).get("name", "")
+            if "done" in status.lower():
+                done.append(issue)
+
+            if COIN_LABEL in labels:
+                coin.append(issue)
 
         if not page_info.get("hasNextPage"):
             break
         cursor = page_info["endCursor"]
 
-    return done
+    return done, coin
 
 # ── Scoring ─────────────────────────────────────────────────────────────────────
 
-def calculate_scores(teams, user_to_team, all_issues):
-    scores = {i: {"creation": 0.0, "implementation": 0.0, "issues_created": 0, "issues_implemented": 0}
+def calculate_scores(teams, user_to_team, all_issues, coin_issues):
+    scores = {i: {"creation": 0.0, "implementation": 0.0, "issues_created": 0, "issues_implemented": 0,
+                  "balance": 0.0, "coin_issues": 0}
               for i in range(len(teams))}
 
     for issue in all_issues:
@@ -190,6 +200,14 @@ def calculate_scores(teams, user_to_team, all_issues):
                 scores[impl_team_id]["implementation"] += sp
             scores[impl_team_id]["issues_implemented"] += 1
 
+    # Balance: SP still available in 🪙-labeled issues created by each team
+    for issue in coin_issues:
+        creator = issue["creator"]
+        creator_team_id = user_to_team.get(creator.lower()) if creator else None
+        if creator_team_id is not None:
+            scores[creator_team_id]["balance"] += issue["story_points"]
+            scores[creator_team_id]["coin_issues"] += 1
+
     return scores
 
 # ── Position Tracking ────────────────────────────────────────────────────────────
@@ -218,7 +236,7 @@ def rank_teams(teams, scores):
 
 # ── HTML ────────────────────────────────────────────────────────────────────────
 
-def generate_html(teams, scores, all_issues, generated_at, ranked, prev_positions):
+def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions):
     rows = ""
     for pos, team_id in enumerate(ranked):
         team     = teams[team_id]
@@ -247,6 +265,10 @@ def generate_html(teams, scores, all_issues, generated_at, ranked, prev_position
             for m in team["members"]
         )
 
+        balance     = s["balance"]
+        balance_cls = "balance-ok" if balance >= 0 else "balance-debt"
+        balance_str = f"+{balance:.2f}" if balance >= 0 else f"{balance:.2f}"
+
         rows += f"""
             <tr class="{row_cls}">
               <td class="col-rank">
@@ -265,10 +287,15 @@ def generate_html(teams, scores, all_issues, generated_at, ranked, prev_position
                 <span class="pts-sub">{s["issues_implemented"]} issues</span>
               </td>
               <td class="col-total">{total:.2f}</td>
+              <td class="col-balance">
+                <span class="balance-value {balance_cls}">{balance_str}</span>
+                <span class="pts-sub">{s["coin_issues"]} open</span>
+              </td>
             </tr>"""
 
-    total_done = len(all_issues)
-    total_sp   = sum(i["story_points"] for i in all_issues)
+    total_done    = len(all_issues)
+    total_sp      = sum(i["story_points"] for i in all_issues)
+    teams_in_debt = sum(1 for i in range(len(teams)) if scores[i]["balance"] < 0)
 
     return f"""<!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -402,7 +429,7 @@ def generate_html(teams, scores, all_issues, generated_at, ranked, prev_position
     /* Stats */
     .stats {{
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 12px;
       margin-bottom: 20px;
     }}
@@ -559,6 +586,18 @@ def generate_html(teams, scores, all_issues, generated_at, ranked, prev_position
       font-variant-numeric: tabular-nums;
     }}
 
+    /* Balance */
+    .col-balance {{ text-align: right; }}
+    .balance-value {{
+      display: block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }}
+    .balance-ok   {{ color: var(--green); }}
+    .balance-debt {{ color: var(--red); }}
+
     /* Rules */
     .rules {{
       margin-top: 20px;
@@ -603,6 +642,9 @@ def generate_html(teams, scores, all_issues, generated_at, ranked, prev_position
       margin-top: 12px;
     }}
 
+    @media (max-width: 900px) {{
+      .stats {{ grid-template-columns: repeat(3, 1fr); }}
+    }}
     @media (max-width: 600px) {{
       .stats {{ grid-template-columns: 1fr 1fr; }}
       header {{ padding: 12px 16px; }}
@@ -645,6 +687,14 @@ def generate_html(teams, scores, all_issues, generated_at, ranked, prev_position
         <div class="value">{total_sp:.1f}</div>
         <div class="label">Story Points</div>
       </div>
+      <div class="stat">
+        <div class="value">{sum(scores[i]["balance"] for i in range(len(teams))):.1f}</div>
+        <div class="label">Budget Available (SP)</div>
+      </div>
+      <div class="stat">
+        <div class="value" style="color: {'var(--red)' if teams_in_debt > 0 else 'var(--green)'}">{teams_in_debt}</div>
+        <div class="label">Teams in Debt</div>
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -656,6 +706,7 @@ def generate_html(teams, scores, all_issues, generated_at, ranked, prev_position
             <th class="align-right">Creation Pts</th>
             <th class="align-right">Implementation Pts</th>
             <th class="align-right">Total</th>
+            <th class="align-right">Budget</th>
           </tr>
         </thead>
         <tbody>{rows}
@@ -670,6 +721,7 @@ def generate_html(teams, scores, all_issues, generated_at, ranked, prev_position
         <li>Implementing another team's issue: <strong>+full SP</strong> to the implementer's team</li>
         <li>Implementing your own issue: <strong>+SP/2</strong> to your team (half story points)</li>
         <li>Only issues with status <strong>Done</strong> count (closed by merged PR)</li>
+        <li><strong>Budget</strong>: SP available in open issues tagged with the budget label — must be &gt;= SP of the PR you want to close</li>
       </ul>
     </div>
 
@@ -708,11 +760,12 @@ def main():
     teams, user_to_team = fetch_teams()
     print(f"  {len(teams)} teams loaded")
 
-    print("Fetching Done issues from project...")
-    all_issues = fetch_done_issues()
+    print("Fetching project issues...")
+    all_issues, coin_issues = fetch_project_issues()
     print(f"  {len(all_issues)} Done issues found")
+    print(f"  {len(coin_issues)} budget-labeled issues found")
 
-    scores = calculate_scores(teams, user_to_team, all_issues)
+    scores = calculate_scores(teams, user_to_team, all_issues, coin_issues)
 
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs")
     os.makedirs(out_dir, exist_ok=True)
@@ -723,7 +776,7 @@ def main():
     save_positions(current_positions, out_dir)
 
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    html = generate_html(teams, scores, all_issues, generated_at, ranked, prev_positions)
+    html = generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions)
 
     out_path = os.path.join(out_dir, "index.html")
     with open(out_path, "w", encoding="utf-8") as f:
