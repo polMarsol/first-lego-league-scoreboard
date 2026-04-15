@@ -130,7 +130,7 @@
     /* Stats */
     .stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 12px;
       margin-bottom: 20px;
     }
@@ -287,6 +287,18 @@
       font-variant-numeric: tabular-nums;
     }
 
+    /* Balance */
+    .col-balance { text-align: right; }
+    .balance-value {
+      display: block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .balance-ok   { color: var(--green); }
+    .balance-debt { color: var(--red); }
+
     /* Rules */
     .rules {
       margin-top: 20px;
@@ -331,6 +343,9 @@
       margin-top: 12px;
     }
 
+    @media (max-width: 900px) {
+      .stats { grid-template-columns: repeat(3, 1fr); }
+    }
     @media (max-width: 600px) {
       .stats { grid-template-columns: 1fr 1fr; }
       header { padding: 12px 16px; }
@@ -373,6 +388,14 @@
         <div class="value">108.2</div>
         <div class="label">Story Points</div>
       </div>
+      <div class="stat">
+        <div class="value">11.2</div>
+        <div class="label">Budget Available (SP)</div>
+      </div>
+      <div class="stat">
+        <div class="value" style="color: var(--green)">0</div>
+        <div class="label">Teams in Debt</div>
+      </div>
     </div>
 
     <div class="table-wrap">
@@ -384,6 +407,7 @@
             <th class="align-right">Creation Pts</th>
             <th class="align-right">Implementation Pts</th>
             <th class="align-right">Total</th>
+            <th class="align-right">Budget</th>
           </tr>
         </thead>
         <tbody>
@@ -391,7 +415,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge rank-1">1</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/polMarsol" target="_blank" class="member" aria-label="polMarsol"><img src="https://github.com/polMarsol.png?size=56" alt="polMarsol" class="avatar" width="28" height="28"><span>polMarsol</span></a><a href="https://github.com/MartiFarranC" target="_blank" class="member" aria-label="MartiFarranC"><img src="https://github.com/MartiFarranC.png?size=56" alt="MartiFarranC" class="avatar" width="28" height="28"><span>MartiFarranC</span></a></div></td>
@@ -404,12 +428,16 @@
                 <span class="pts-sub">17 issues</span>
               </td>
               <td class="col-total">25.25</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+3.00</span>
+                <span class="pts-sub">1 open</span>
+              </td>
             </tr>
             <tr class="row-top-2">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge rank-2">2</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Ferranicu" target="_blank" class="member" aria-label="Ferranicu"><img src="https://github.com/Ferranicu.png?size=56" alt="Ferranicu" class="avatar" width="28" height="28"><span>Ferranicu</span></a><a href="https://github.com/DanGxG" target="_blank" class="member" aria-label="DanGxG"><img src="https://github.com/DanGxG.png?size=56" alt="DanGxG" class="avatar" width="28" height="28"><span>DanGxG</span></a></div></td>
@@ -422,12 +450,16 @@
                 <span class="pts-sub">14 issues</span>
               </td>
               <td class="col-total">25.00</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+0.00</span>
+                <span class="pts-sub">0 open</span>
+              </td>
             </tr>
             <tr class="row-top-3">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge rank-3">3</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/oRioL-04" target="_blank" class="member" aria-label="oRioL-04"><img src="https://github.com/oRioL-04.png?size=56" alt="oRioL-04" class="avatar" width="28" height="28"><span>oRioL-04</span></a><a href="https://github.com/kirklan34" target="_blank" class="member" aria-label="kirklan34"><img src="https://github.com/kirklan34.png?size=56" alt="kirklan34" class="avatar" width="28" height="28"><span>kirklan34</span></a></div></td>
@@ -440,12 +472,16 @@
                 <span class="pts-sub">12 issues</span>
               </td>
               <td class="col-total">13.75</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+0.00</span>
+                <span class="pts-sub">0 open</span>
+              </td>
             </tr>
             <tr class="">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">4</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/MireiaTerri" target="_blank" class="member" aria-label="MireiaTerri"><img src="https://github.com/MireiaTerri.png?size=56" alt="MireiaTerri" class="avatar" width="28" height="28"><span>MireiaTerri</span></a><a href="https://github.com/xertrec" target="_blank" class="member" aria-label="xertrec"><img src="https://github.com/xertrec.png?size=56" alt="xertrec" class="avatar" width="28" height="28"><span>xertrec</span></a></div></td>
@@ -458,12 +494,16 @@
                 <span class="pts-sub">9 issues</span>
               </td>
               <td class="col-total">13.00</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+0.00</span>
+                <span class="pts-sub">0 open</span>
+              </td>
             </tr>
             <tr class="">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">5</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Jakub2504" target="_blank" class="member" aria-label="Jakub2504"><img src="https://github.com/Jakub2504.png?size=56" alt="Jakub2504" class="avatar" width="28" height="28"><span>Jakub2504</span></a><a href="https://github.com/Mooliner" target="_blank" class="member" aria-label="Mooliner"><img src="https://github.com/Mooliner.png?size=56" alt="Mooliner" class="avatar" width="28" height="28"><span>Mooliner</span></a></div></td>
@@ -476,12 +516,16 @@
                 <span class="pts-sub">9 issues</span>
               </td>
               <td class="col-total">13.00</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+0.00</span>
+                <span class="pts-sub">0 open</span>
+              </td>
             </tr>
             <tr class="">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">6</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Niltm35" target="_blank" class="member" aria-label="Niltm35"><img src="https://github.com/Niltm35.png?size=56" alt="Niltm35" class="avatar" width="28" height="28"><span>Niltm35</span></a><a href="https://github.com/espitijungle" target="_blank" class="member" aria-label="espitijungle"><img src="https://github.com/espitijungle.png?size=56" alt="espitijungle" class="avatar" width="28" height="28"><span>espitijungle</span></a></div></td>
@@ -494,12 +538,16 @@
                 <span class="pts-sub">5 issues</span>
               </td>
               <td class="col-total">9.75</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+0.00</span>
+                <span class="pts-sub">0 open</span>
+              </td>
             </tr>
             <tr class="">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">7</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/IvonneHernan" target="_blank" class="member" aria-label="IvonneHernan"><img src="https://github.com/IvonneHernan.png?size=56" alt="IvonneHernan" class="avatar" width="28" height="28"><span>IvonneHernan</span></a><a href="https://github.com/nigelboada" target="_blank" class="member" aria-label="nigelboada"><img src="https://github.com/nigelboada.png?size=56" alt="nigelboada" class="avatar" width="28" height="28"><span>nigelboada</span></a></div></td>
@@ -512,12 +560,16 @@
                 <span class="pts-sub">4 issues</span>
               </td>
               <td class="col-total">8.50</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+0.00</span>
+                <span class="pts-sub">0 open</span>
+              </td>
             </tr>
             <tr class="">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">8</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/xji650" target="_blank" class="member" aria-label="xji650"><img src="https://github.com/xji650.png?size=56" alt="xji650" class="avatar" width="28" height="28"><span>xji650</span></a><a href="https://github.com/xBlanco998" target="_blank" class="member" aria-label="xBlanco998"><img src="https://github.com/xBlanco998.png?size=56" alt="xBlanco998" class="avatar" width="28" height="28"><span>xBlanco998</span></a></div></td>
@@ -530,12 +582,16 @@
                 <span class="pts-sub">3 issues</span>
               </td>
               <td class="col-total">4.00</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+2.25</span>
+                <span class="pts-sub">2 open</span>
+              </td>
             </tr>
             <tr class="">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">9</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Janics22" target="_blank" class="member" aria-label="Janics22"><img src="https://github.com/Janics22.png?size=56" alt="Janics22" class="avatar" width="28" height="28"><span>Janics22</span></a><a href="https://github.com/ikeerwp" target="_blank" class="member" aria-label="ikeerwp"><img src="https://github.com/ikeerwp.png?size=56" alt="ikeerwp" class="avatar" width="28" height="28"><span>ikeerwp</span></a></div></td>
@@ -548,12 +604,16 @@
                 <span class="pts-sub">3 issues</span>
               </td>
               <td class="col-total">3.75</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+6.00</span>
+                <span class="pts-sub">7 open</span>
+              </td>
             </tr>
             <tr class="">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">10</span>
-                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/cesar606" target="_blank" class="member" aria-label="cesar606"><img src="https://github.com/cesar606.png?size=56" alt="cesar606" class="avatar" width="28" height="28"><span>cesar606</span></a><a href="https://github.com/mikaropa11" target="_blank" class="member" aria-label="mikaropa11"><img src="https://github.com/mikaropa11.png?size=56" alt="mikaropa11" class="avatar" width="28" height="28"><span>mikaropa11</span></a></div></td>
@@ -566,6 +626,10 @@
                 <span class="pts-sub">2 issues</span>
               </td>
               <td class="col-total">2.50</td>
+              <td class="col-balance">
+                <span class="balance-value balance-ok">+0.00</span>
+                <span class="pts-sub">0 open</span>
+              </td>
             </tr>
         </tbody>
       </table>
@@ -578,10 +642,11 @@
         <li>Implementing another team's issue: <strong>+full SP</strong> to the implementer's team</li>
         <li>Implementing your own issue: <strong>+SP/2</strong> to your team (half story points)</li>
         <li>Only issues with status <strong>Done</strong> count (closed by merged PR)</li>
+        <li><strong>Budget</strong>: SP available in open issues tagged with the budget label — must be &gt;= SP of the PR you want to close</li>
       </ul>
     </div>
 
-    <p class="updated">Last updated: 2026-04-15 20:50 UTC</p>
+    <p class="updated">Last updated: 2026-04-15 21:09 UTC</p>
   </div>
   <script>
     (function () {
