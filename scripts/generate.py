@@ -200,30 +200,36 @@ def generate_html(teams, scores, all_issues, generated_at):
         reverse=True,
     )
 
-    medal = {0: "🥇", 1: "🥈", 2: "🥉"}
-
     rows = ""
     for pos, team_id in enumerate(ranked):
-        team  = teams[team_id]
-        s     = scores[team_id]
-        total = s["creation"] + s["implementation"]
-        rank_display = medal.get(pos, f"#{pos + 1}")
+        team      = teams[team_id]
+        s         = scores[team_id]
+        total     = s["creation"] + s["implementation"]
+        rank_num  = pos + 1
+        rank_cls  = f"rank-{rank_num}" if rank_num <= 3 else ""
+        row_cls   = f"row-top-{rank_num}" if rank_num <= 3 else ""
 
-        members_html = " & ".join(
-            f'<a href="https://github.com/{m}" target="_blank" class="member">'
-            f'<img src="https://github.com/{m}.png?size=48" alt="{m}" class="avatar">'
+        members_html = "".join(
+            f'<a href="https://github.com/{m}" target="_blank" class="member" aria-label="{m}">'
+            f'<img src="https://github.com/{m}.png?size=56" alt="{m}" class="avatar" width="28" height="28">'
             f'<span>{m}</span>'
             f'</a>'
             for m in team["members"]
         )
 
         rows += f"""
-            <tr>
-              <td class="rank">{rank_display}</td>
-              <td class="team"><div class="team-members">{members_html}</div></td>
-              <td class="pts">{s["creation"]:.2f}<span class="sub">({s["issues_created"]} issues)</span></td>
-              <td class="pts">{s["implementation"]:.2f}<span class="sub">({s["issues_implemented"]} issues)</span></td>
-              <td class="total">{total:.2f}</td>
+            <tr class="{row_cls}">
+              <td class="col-rank"><span class="rank-badge {rank_cls}">{rank_num}</span></td>
+              <td class="col-team"><div class="team-members">{members_html}</div></td>
+              <td class="col-pts">
+                <span class="pts-value">{s["creation"]:.2f}</span>
+                <span class="pts-sub">{s["issues_created"]} issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">{s["implementation"]:.2f}</span>
+                <span class="pts-sub">{s["issues_implemented"]} issues</span>
+              </td>
+              <td class="col-total">{total:.2f}</td>
             </tr>"""
 
     total_done = len(all_issues)
@@ -235,78 +241,264 @@ def generate_html(teams, scores, all_issues, generated_at):
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FLL Scoreboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+
+    :root {{
+      --bg:            #0D1117;
+      --surface:       #161B22;
+      --surface-hover: #1C2128;
+      --border:        #30363D;
+      --border-subtle: #21262D;
+      --text-primary:  #E6EDF3;
+      --text-secondary:#8B949E;
+      --text-muted:    #6E7681;
+      --accent:        #2F81F7;
+      --green:         #3FB950;
+      --gold:          #D4A017;
+      --silver:        #A0AEC0;
+      --bronze:        #B87333;
+    }}
+
     body {{
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0d1117; color: #e6edf3; min-height: 100vh;
+      font-family: 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      font-size: 16px;
+      line-height: 1.5;
     }}
+
     header {{
-      background: #161b22; border-bottom: 1px solid #30363d;
-      padding: 24px 32px; display: flex; align-items: center; gap: 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
     }}
-    header h1 {{ font-size: 1.4rem; font-weight: 700; color: #58a6ff; }}
-    header p  {{ color: #8b949e; font-size: 0.8rem; margin-top: 2px; }}
-    .container {{ max-width: 860px; margin: 32px auto; padding: 0 20px; }}
+    .header-inner {{
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }}
+    header h1 {{
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }}
+    header .org {{
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }}
+
+    .container {{
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 20px;
+    }}
+
+    /* Stats */
     .stats {{
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 12px; margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
     }}
     .stat {{
-      background: #161b22; border: 1px solid #30363d;
-      border-radius: 8px; padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
     }}
-    .stat .value {{ font-size: 1.6rem; font-weight: 700; color: #58a6ff; }}
-    .stat .label {{ font-size: 0.7rem; color: #8b949e; margin-top: 2px;
-                    text-transform: uppercase; letter-spacing: .06em; }}
-    table {{
-      width: 100%; border-collapse: collapse;
-      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    .stat .value {{
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }}
+    .stat .label {{
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+    }}
+
+    /* Table */
+    .table-wrap {{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
       overflow: hidden;
+      overflow-x: auto;
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 540px;
+    }}
+    thead tr {{
+      background: var(--surface-hover);
+      border-bottom: 1px solid var(--border);
     }}
     th {{
-      padding: 10px 14px; text-align: left; font-size: 0.7rem;
-      text-transform: uppercase; letter-spacing: .06em;
-      color: #8b949e; background: #21262d; border-bottom: 1px solid #30363d;
+      padding: 10px 16px;
+      text-align: left;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      white-space: nowrap;
     }}
-    td {{ padding: 13px 14px; border-bottom: 1px solid #21262d; font-size: 0.88rem; }}
+    th.align-right {{ text-align: right; }}
+    td {{
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.88rem;
+      vertical-align: middle;
+    }}
     tr:last-child td {{ border-bottom: none; }}
-    tr:hover td {{ background: #1c2128; }}
-    td.rank  {{ font-size: 1.1rem; width: 60px; text-align: center; }}
-    td.team  {{ font-weight: 600; }}
-    .team-members {{ display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }}
-    .member  {{
-      display: flex; align-items: center; gap: 8px;
-      text-decoration: none; color: #e6edf3;
+    tbody tr {{ transition: background 150ms ease; }}
+    tbody tr:hover td {{ background: var(--surface-hover); }}
+
+    /* Top 3 left accent */
+    .row-top-1 td:first-child {{ box-shadow: inset 3px 0 0 var(--gold); }}
+    .row-top-2 td:first-child {{ box-shadow: inset 3px 0 0 var(--silver); }}
+    .row-top-3 td:first-child {{ box-shadow: inset 3px 0 0 var(--bronze); }}
+
+    /* Rank */
+    .col-rank {{ width: 56px; text-align: center; }}
+    .rank-badge {{
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-muted);
     }}
-    .member:hover {{ color: #58a6ff; }}
-    .member:hover .avatar {{ border-color: #58a6ff; }}
-    .avatar  {{
-      width: 32px; height: 32px; border-radius: 50%;
-      border: 2px solid #30363d; flex-shrink: 0;
+    .rank-badge.rank-1 {{ color: var(--gold); }}
+    .rank-badge.rank-2 {{ color: var(--silver); }}
+    .rank-badge.rank-3 {{ color: var(--bronze); }}
+
+    /* Team */
+    .col-team {{ font-weight: 500; }}
+    .team-members {{
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }}
-    td.pts   {{ color: #8b949e; font-variant-numeric: tabular-nums; }}
-    td.total {{ font-weight: 700; color: #3fb950;
-                font-variant-numeric: tabular-nums; font-size: 1rem; }}
-    .sub {{ display: block; font-size: 0.7rem; color: #6e7681; margin-top: 2px; }}
+    .member {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      transition: color 150ms ease;
+      cursor: pointer;
+    }}
+    .member:hover {{ color: var(--accent); }}
+    .member:hover .avatar {{ border-color: var(--accent); }}
+    .avatar {{
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      flex-shrink: 0;
+      display: block;
+    }}
+
+    /* Points */
+    .col-pts {{ text-align: right; }}
+    .pts-value {{
+      display: block;
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }}
+    .pts-sub {{
+      display: block;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }}
+
+    /* Total */
+    .col-total {{
+      text-align: right;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--green);
+      font-variant-numeric: tabular-nums;
+    }}
+
+    /* Rules */
     .rules {{
-      margin-top: 24px; background: #161b22; border: 1px solid #30363d;
-      border-radius: 8px; padding: 16px 20px; font-size: 0.8rem; color: #8b949e;
+      margin-top: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
     }}
-    .rules h2 {{ color: #e6edf3; font-size: 0.85rem; margin-bottom: 8px; }}
-    .rules li {{ margin-left: 16px; margin-top: 4px; line-height: 1.5; }}
-    .updated {{ text-align: center; color: #6e7681; font-size: 0.72rem; margin-top: 12px; }}
+    .rules h2 {{
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }}
+    .rules ul {{ list-style: none; }}
+    .rules li {{
+      padding: 3px 0 3px 12px;
+      position: relative;
+    }}
+    .rules li::before {{
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--border);
+    }}
+
+    .updated {{
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      margin-top: 12px;
+    }}
+
     @media (max-width: 600px) {{
       .stats {{ grid-template-columns: 1fr 1fr; }}
       header {{ padding: 16px; }}
+      .header-inner {{ flex-direction: column; gap: 4px; }}
+      .container {{ padding: 0 12px; margin: 20px auto; }}
     }}
   </style>
 </head>
 <body>
   <header>
-    <div>
-      <h1>First Lego League — Scoreboard</h1>
-      <p>UdL EPS SoftArch Igualada</p>
+    <div class="header-inner">
+      <h1>FLL Scoreboard</h1>
+      <span class="org">UdL EPS SoftArch Igualada</span>
     </div>
   </header>
   <div class="container">
@@ -321,26 +513,28 @@ def generate_html(teams, scores, all_issues, generated_at):
       </div>
       <div class="stat">
         <div class="value">{total_sp:.1f}</div>
-        <div class="label">Story Points totales</div>
+        <div class="label">Story Points</div>
       </div>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Pos</th>
-          <th>Equipo</th>
-          <th>Pts Creación</th>
-          <th>Pts Implementación</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-      <tbody>{rows}
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-rank">Pos</th>
+            <th>Equipo</th>
+            <th class="align-right">Pts Creacion</th>
+            <th class="align-right">Pts Implementacion</th>
+            <th class="align-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>{rows}
+        </tbody>
+      </table>
+    </div>
 
     <div class="rules">
-      <h2>Reglas de puntuación</h2>
+      <h2>Reglas de puntuacion</h2>
       <ul>
         <li>Crear una issue (que acabe en Done): <strong>+0.25 pts</strong> al equipo creador</li>
         <li>Implementar una issue de otro equipo: <strong>+SP completos</strong> al equipo implementador</li>
