@@ -105,6 +105,17 @@ query($org: String!, $projectNumber: Int!, $cursor: String) {
               labels(first: 15) { nodes { name } }
               repository { name }
               closedAt
+              timelineItems(itemTypes: [CLOSED_EVENT], last: 1) {
+                nodes {
+                  ... on ClosedEvent {
+                    closer {
+                      ... on PullRequest {
+                        author { login }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -150,6 +161,14 @@ def fetch_project_issues():
             if sp is None:
                 continue  # No SP label → irrelevant for both scoring and balance
 
+            # Extract PR author who closed the issue
+            tl_nodes = content.get("timelineItems", {}).get("nodes", [])
+            closer = ""
+            if tl_nodes:
+                closer_obj    = (tl_nodes[0].get("closer") or {})
+                closer_author = (closer_obj.get("author") or {})
+                closer        = closer_author.get("login", "") or ""
+
             issue = {
                 "number":       content["number"],
                 "title":        content["title"],
@@ -158,6 +177,7 @@ def fetch_project_issues():
                 "assignees":    [a["login"] for a in content.get("assignees", {}).get("nodes", [])],
                 "story_points": sp,
                 "closed_at":    content.get("closedAt", "") or "",
+                "closer":       closer,
             }
 
             status = (item.get("status") or {}).get("name", "")
@@ -175,25 +195,37 @@ def fetch_project_issues():
 
 # ── Scoring ─────────────────────────────────────────────────────────────────────
 
+def find_implementer(issue, user_to_team):
+    """Return (team_id, login) for the person who implemented this issue.
+
+    Priority:
+      1. Author of the PR that closed the issue (most accurate)
+      2. First assignee that belongs to a known team (fallback)
+    """
+    closer = issue.get("closer", "")
+    if closer:
+        t = user_to_team.get(closer.lower())
+        if t is not None:
+            return t, closer
+
+    for a in issue["assignees"]:
+        t = user_to_team.get(a.lower())
+        if t is not None:
+            return t, a
+
+    return None, None
+
 def calculate_scores(teams, user_to_team, all_issues, coin_issues):
     scores = {i: {"creation": 0.0, "implementation": 0.0, "issues_created": 0, "issues_implemented": 0,
                   "balance": 0.0, "coin_issues": 0}
               for i in range(len(teams))}
 
     for issue in all_issues:
-        creator   = issue["creator"]
-        assignees = issue["assignees"]
-        sp        = issue["story_points"]
+        creator  = issue["creator"]
+        sp       = issue["story_points"]
 
-        creator_team_id = user_to_team.get(creator.lower()) if creator else None
-
-        # Implementer team = first assignee that belongs to a known team
-        impl_team_id = None
-        for a in assignees:
-            t = user_to_team.get(a.lower())
-            if t is not None:
-                impl_team_id = t
-                break
+        creator_team_id          = user_to_team.get(creator.lower()) if creator else None
+        impl_team_id, _implementer = find_implementer(issue, user_to_team)
 
         # Creation points
         if creator_team_id is not None:
@@ -226,14 +258,7 @@ def build_issues_detail(teams, user_to_team, all_issues):
     for issue in all_issues:
         creator     = issue["creator"]
         creator_tid = user_to_team.get(creator.lower()) if creator else None
-        impl_tid    = None
-        implementer = None
-        for a in issue["assignees"]:
-            t = user_to_team.get(a.lower())
-            if t is not None:
-                impl_tid    = t
-                implementer = a
-                break
+        impl_tid, implementer = find_implementer(issue, user_to_team)
         if impl_tid is None:
             continue
         sp    = issue["story_points"]
