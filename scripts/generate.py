@@ -208,10 +208,19 @@ def generate_html(teams, scores, all_issues, generated_at):
         s     = scores[team_id]
         total = s["creation"] + s["implementation"]
         rank_display = medal.get(pos, f"#{pos + 1}")
+
+        members_html = " & ".join(
+            f'<a href="https://github.com/{m}" target="_blank" class="member">'
+            f'<img src="https://github.com/{m}.png?size=48" alt="{m}" class="avatar">'
+            f'<span>{m}</span>'
+            f'</a>'
+            for m in team["members"]
+        )
+
         rows += f"""
             <tr>
               <td class="rank">{rank_display}</td>
-              <td class="team">{team["name"]}</td>
+              <td class="team"><div class="team-members">{members_html}</div></td>
               <td class="pts">{s["creation"]:.2f}<span class="sub">({s["issues_created"]} issues)</span></td>
               <td class="pts">{s["implementation"]:.2f}<span class="sub">({s["issues_implemented"]} issues)</span></td>
               <td class="total">{total:.2f}</td>
@@ -265,6 +274,17 @@ def generate_html(teams, scores, all_issues, generated_at):
     tr:hover td {{ background: #1c2128; }}
     td.rank  {{ font-size: 1.1rem; width: 60px; text-align: center; }}
     td.team  {{ font-weight: 600; }}
+    .team-members {{ display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }}
+    .member  {{
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: #e6edf3;
+    }}
+    .member:hover {{ color: #58a6ff; }}
+    .member:hover .avatar {{ border-color: #58a6ff; }}
+    .avatar  {{
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 2px solid #30363d; flex-shrink: 0;
+    }}
     td.pts   {{ color: #8b949e; font-variant-numeric: tabular-nums; }}
     td.total {{ font-weight: 700; color: #3fb950;
                 font-variant-numeric: tabular-nums; font-size: 1rem; }}
