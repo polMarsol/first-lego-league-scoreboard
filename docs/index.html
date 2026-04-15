@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +10,8 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
+    /* Dark theme (default) */
+    :root, [data-theme="dark"] {
       --bg:            #0D1117;
       --surface:       #161B22;
       --surface-hover: #1C2128;
@@ -21,9 +22,28 @@
       --text-muted:    #6E7681;
       --accent:        #2F81F7;
       --green:         #3FB950;
+      --red:           #F85149;
       --gold:          #D4A017;
       --silver:        #A0AEC0;
       --bronze:        #B87333;
+    }
+
+    /* Light theme */
+    [data-theme="light"] {
+      --bg:            #FFFFFF;
+      --surface:       #F6F8FA;
+      --surface-hover: #EFF2F5;
+      --border:        #D0D7DE;
+      --border-subtle: #EAEEF2;
+      --text-primary:  #1F2328;
+      --text-secondary:#656D76;
+      --text-muted:    #9198A1;
+      --accent:        #0969DA;
+      --green:         #1A7F37;
+      --red:           #CF222E;
+      --gold:          #9A6700;
+      --silver:        #57606A;
+      --bronze:        #6E3B1A;
     }
 
     body {
@@ -33,16 +53,24 @@
       min-height: 100vh;
       font-size: 16px;
       line-height: 1.5;
+      transition: background 200ms ease, color 200ms ease;
     }
 
+    /* Header */
     header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 20px 32px;
+      padding: 16px 32px;
     }
     .header-inner {
       max-width: 900px;
       margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .header-left {
       display: flex;
       align-items: baseline;
       gap: 14px;
@@ -60,9 +88,42 @@
       color: var(--text-muted);
     }
 
+    /* Theme toggle */
+    .theme-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-family: 'Barlow', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+      white-space: nowrap;
+    }
+    .theme-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--surface-hover);
+    }
+    .theme-btn svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+    .icon-sun  { display: none; }
+    .icon-moon { display: block; }
+    [data-theme="light"] .icon-sun  { display: block; }
+    [data-theme="light"] .icon-moon { display: none; }
+
+    /* Layout */
     .container {
       max-width: 900px;
-      margin: 32px auto;
+      margin: 28px auto;
       padding: 0 20px;
     }
 
@@ -139,17 +200,38 @@
     .row-top-2 td:first-child { box-shadow: inset 3px 0 0 var(--silver); }
     .row-top-3 td:first-child { box-shadow: inset 3px 0 0 var(--bronze); }
 
-    /* Rank */
-    .col-rank { width: 56px; text-align: center; }
+    /* Rank cell */
+    .col-rank { width: 68px; }
+    .rank-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
     .rank-badge {
       font-family: 'Barlow Condensed', sans-serif;
       font-size: 1.05rem;
       font-weight: 700;
       color: var(--text-muted);
+      min-width: 20px;
+      text-align: right;
     }
     .rank-badge.rank-1 { color: var(--gold); }
     .rank-badge.rank-2 { color: var(--silver); }
     .rank-badge.rank-3 { color: var(--bronze); }
+
+    /* Trend indicators */
+    .trend {
+      font-size: 0.55rem;
+      font-weight: 700;
+      line-height: 1;
+      width: 12px;
+      text-align: center;
+    }
+    .trend-up   { color: var(--green); }
+    .trend-down { color: var(--red); }
+    .trend-same { color: var(--text-muted); font-size: 0.7rem; }
+    .trend-new  { color: var(--accent); font-size: 0.5rem; }
 
     /* Team */
     .col-team { font-weight: 500; }
@@ -251,8 +333,8 @@
 
     @media (max-width: 600px) {
       .stats { grid-template-columns: 1fr 1fr; }
-      header { padding: 16px; }
-      .header-inner { flex-direction: column; gap: 4px; }
+      header { padding: 12px 16px; }
+      .header-left { flex-direction: column; gap: 2px; }
       .container { padding: 0 12px; margin: 20px auto; }
     }
   </style>
@@ -260,19 +342,32 @@
 <body>
   <header>
     <div class="header-inner">
-      <h1>FLL Scoreboard</h1>
-      <span class="org">UdL EPS SoftArch Igualada</span>
+      <div class="header-left">
+        <h1>FLL Scoreboard</h1>
+        <span class="org">UdL EPS SoftArch Igualada</span>
+      </div>
+      <button class="theme-btn" onclick="toggleTheme()" aria-label="Toggle theme">
+        <!-- Sun icon (shown in light mode) -->
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <!-- Moon icon (shown in dark mode) -->
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <span class="btn-label">Light</span>
+      </button>
     </div>
   </header>
   <div class="container">
     <div class="stats">
       <div class="stat">
         <div class="value">10</div>
-        <div class="label">Equipos</div>
+        <div class="label">Teams</div>
       </div>
       <div class="stat">
         <div class="value">78</div>
-        <div class="label">Issues en Done</div>
+        <div class="label">Done Issues</div>
       </div>
       <div class="stat">
         <div class="value">108.2</div>
@@ -285,15 +380,20 @@
         <thead>
           <tr>
             <th class="col-rank">Pos</th>
-            <th>Equipo</th>
-            <th class="align-right">Pts Creacion</th>
-            <th class="align-right">Pts Implementacion</th>
+            <th>Team</th>
+            <th class="align-right">Creation Pts</th>
+            <th class="align-right">Implementation Pts</th>
             <th class="align-right">Total</th>
           </tr>
         </thead>
         <tbody>
             <tr class="row-top-1">
-              <td class="col-rank"><span class="rank-badge rank-1">1</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge rank-1">1</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/polMarsol" target="_blank" class="member" aria-label="polMarsol"><img src="https://github.com/polMarsol.png?size=56" alt="polMarsol" class="avatar" width="28" height="28"><span>polMarsol</span></a><a href="https://github.com/MartiFarranC" target="_blank" class="member" aria-label="MartiFarranC"><img src="https://github.com/MartiFarranC.png?size=56" alt="MartiFarranC" class="avatar" width="28" height="28"><span>MartiFarranC</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">2.50</span>
@@ -306,7 +406,12 @@
               <td class="col-total">25.25</td>
             </tr>
             <tr class="row-top-2">
-              <td class="col-rank"><span class="rank-badge rank-2">2</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge rank-2">2</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Ferranicu" target="_blank" class="member" aria-label="Ferranicu"><img src="https://github.com/Ferranicu.png?size=56" alt="Ferranicu" class="avatar" width="28" height="28"><span>Ferranicu</span></a><a href="https://github.com/DanGxG" target="_blank" class="member" aria-label="DanGxG"><img src="https://github.com/DanGxG.png?size=56" alt="DanGxG" class="avatar" width="28" height="28"><span>DanGxG</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">0.25</span>
@@ -319,7 +424,12 @@
               <td class="col-total">25.00</td>
             </tr>
             <tr class="row-top-3">
-              <td class="col-rank"><span class="rank-badge rank-3">3</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge rank-3">3</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/oRioL-04" target="_blank" class="member" aria-label="oRioL-04"><img src="https://github.com/oRioL-04.png?size=56" alt="oRioL-04" class="avatar" width="28" height="28"><span>oRioL-04</span></a><a href="https://github.com/kirklan34" target="_blank" class="member" aria-label="kirklan34"><img src="https://github.com/kirklan34.png?size=56" alt="kirklan34" class="avatar" width="28" height="28"><span>kirklan34</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">2.50</span>
@@ -332,7 +442,12 @@
               <td class="col-total">13.75</td>
             </tr>
             <tr class="">
-              <td class="col-rank"><span class="rank-badge ">4</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge ">4</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/MireiaTerri" target="_blank" class="member" aria-label="MireiaTerri"><img src="https://github.com/MireiaTerri.png?size=56" alt="MireiaTerri" class="avatar" width="28" height="28"><span>MireiaTerri</span></a><a href="https://github.com/xertrec" target="_blank" class="member" aria-label="xertrec"><img src="https://github.com/xertrec.png?size=56" alt="xertrec" class="avatar" width="28" height="28"><span>xertrec</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">1.75</span>
@@ -345,7 +460,12 @@
               <td class="col-total">13.00</td>
             </tr>
             <tr class="">
-              <td class="col-rank"><span class="rank-badge ">5</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge ">5</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Jakub2504" target="_blank" class="member" aria-label="Jakub2504"><img src="https://github.com/Jakub2504.png?size=56" alt="Jakub2504" class="avatar" width="28" height="28"><span>Jakub2504</span></a><a href="https://github.com/Mooliner" target="_blank" class="member" aria-label="Mooliner"><img src="https://github.com/Mooliner.png?size=56" alt="Mooliner" class="avatar" width="28" height="28"><span>Mooliner</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">0.00</span>
@@ -358,7 +478,12 @@
               <td class="col-total">13.00</td>
             </tr>
             <tr class="">
-              <td class="col-rank"><span class="rank-badge ">6</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge ">6</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Niltm35" target="_blank" class="member" aria-label="Niltm35"><img src="https://github.com/Niltm35.png?size=56" alt="Niltm35" class="avatar" width="28" height="28"><span>Niltm35</span></a><a href="https://github.com/espitijungle" target="_blank" class="member" aria-label="espitijungle"><img src="https://github.com/espitijungle.png?size=56" alt="espitijungle" class="avatar" width="28" height="28"><span>espitijungle</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">5.00</span>
@@ -371,7 +496,12 @@
               <td class="col-total">9.75</td>
             </tr>
             <tr class="">
-              <td class="col-rank"><span class="rank-badge ">7</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge ">7</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/IvonneHernan" target="_blank" class="member" aria-label="IvonneHernan"><img src="https://github.com/IvonneHernan.png?size=56" alt="IvonneHernan" class="avatar" width="28" height="28"><span>IvonneHernan</span></a><a href="https://github.com/nigelboada" target="_blank" class="member" aria-label="nigelboada"><img src="https://github.com/nigelboada.png?size=56" alt="nigelboada" class="avatar" width="28" height="28"><span>nigelboada</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">1.00</span>
@@ -384,7 +514,12 @@
               <td class="col-total">8.50</td>
             </tr>
             <tr class="">
-              <td class="col-rank"><span class="rank-badge ">8</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge ">8</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/xji650" target="_blank" class="member" aria-label="xji650"><img src="https://github.com/xji650.png?size=56" alt="xji650" class="avatar" width="28" height="28"><span>xji650</span></a><a href="https://github.com/xBlanco998" target="_blank" class="member" aria-label="xBlanco998"><img src="https://github.com/xBlanco998.png?size=56" alt="xBlanco998" class="avatar" width="28" height="28"><span>xBlanco998</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">0.75</span>
@@ -397,7 +532,12 @@
               <td class="col-total">4.00</td>
             </tr>
             <tr class="">
-              <td class="col-rank"><span class="rank-badge ">9</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge ">9</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Janics22" target="_blank" class="member" aria-label="Janics22"><img src="https://github.com/Janics22.png?size=56" alt="Janics22" class="avatar" width="28" height="28"><span>Janics22</span></a><a href="https://github.com/ikeerwp" target="_blank" class="member" aria-label="ikeerwp"><img src="https://github.com/ikeerwp.png?size=56" alt="ikeerwp" class="avatar" width="28" height="28"><span>ikeerwp</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">0.25</span>
@@ -410,7 +550,12 @@
               <td class="col-total">3.75</td>
             </tr>
             <tr class="">
-              <td class="col-rank"><span class="rank-badge ">10</span></td>
+              <td class="col-rank">
+                <div class="rank-cell">
+                  <span class="rank-badge ">10</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
+                </div>
+              </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/cesar606" target="_blank" class="member" aria-label="cesar606"><img src="https://github.com/cesar606.png?size=56" alt="cesar606" class="avatar" width="28" height="28"><span>cesar606</span></a><a href="https://github.com/mikaropa11" target="_blank" class="member" aria-label="mikaropa11"><img src="https://github.com/mikaropa11.png?size=56" alt="mikaropa11" class="avatar" width="28" height="28"><span>mikaropa11</span></a></div></td>
               <td class="col-pts">
                 <span class="pts-value">0.25</span>
@@ -427,16 +572,35 @@
     </div>
 
     <div class="rules">
-      <h2>Reglas de puntuacion</h2>
+      <h2>Scoring Rules</h2>
       <ul>
-        <li>Crear una issue (que acabe en Done): <strong>+0.25 pts</strong> al equipo creador</li>
-        <li>Implementar una issue de otro equipo: <strong>+SP completos</strong> al equipo implementador</li>
-        <li>Implementar una issue propia: <strong>+SP/2</strong> al equipo (mitad de los story points)</li>
-        <li>Solo cuentan las issues en estado <strong>Done</strong> (cerradas por PR mergeado)</li>
+        <li>Creating an issue (that ends up Done): <strong>+0.25 pts</strong> to the creator's team</li>
+        <li>Implementing another team's issue: <strong>+full SP</strong> to the implementer's team</li>
+        <li>Implementing your own issue: <strong>+SP/2</strong> to your team (half story points)</li>
+        <li>Only issues with status <strong>Done</strong> count (closed by merged PR)</li>
       </ul>
     </div>
 
-    <p class="updated">Ultima actualizacion: 2026-04-15 20:40 UTC</p>
+    <p class="updated">Last updated: 2026-04-15 20:50 UTC</p>
   </div>
+  <script>
+    (function () {
+      var saved = localStorage.getItem('fll-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+      var btn = document.querySelector('.btn-label');
+      function updateLabel() {
+        var t = document.documentElement.getAttribute('data-theme');
+        btn.textContent = t === 'dark' ? 'Light' : 'Dark';
+      }
+      updateLabel();
+      window.toggleTheme = function () {
+        var cur = document.documentElement.getAttribute('data-theme');
+        var next = cur === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('fll-theme', next);
+        updateLabel();
+      };
+    })();
+  </script>
 </body>
 </html>
