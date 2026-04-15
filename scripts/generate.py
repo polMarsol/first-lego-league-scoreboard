@@ -2001,7 +2001,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         var isAssignedToMe = user && issue.assignees.map(function(a){{return a.toLowerCase();}}).includes(user.login.toLowerCase());
         var btnDisabled = !token ? '' : (isClaimed || isAssignedToMe ? ' disabled' : '');
         var btnClass    = isClaimed || isAssignedToMe ? ' claimed' : '';
-        var btnText     = isClaimed ? '&#x2713; Claimed' : isAssignedToMe ? 'Already yours' : 'Claim';
+        var btnText     = isClaimed ? '&#x2713; Requested' : isAssignedToMe ? 'Already yours' : 'Request';
         var issueUrl    = 'https://github.com/' + ORG + '/' + (issue.repo || '_') + '/issues/' + issue.number;
         return '<div class="issue-row" id="irow-' + issue.repo + '-' + issue.number + '">' +
           '<span class="issue-num">#' + issue.number + '</span>' +
@@ -2028,23 +2028,17 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       var user  = getGhUser();
       if (!token || !user) {{ loginWithGitHub(); return; }}
       btn.disabled = true;
-      btn.textContent = 'Claiming\u2026';
+      btn.textContent = 'Sending\u2026';
       try {{
-        // Assign user to issue
-        var r1 = await fetch('https://api.github.com/repos/' + ORG + '/' + repo + '/issues/' + number + '/assignees', {{
+        // Post a comment claiming the issue (assigning requires write access the user may not have)
+        var r = await fetch('https://api.github.com/repos/' + ORG + '/' + repo + '/issues/' + number + '/comments', {{
           method: 'POST',
           headers: {{ 'Authorization': 'token ' + token, 'Content-Type': 'application/json' }},
-          body: JSON.stringify({{ assignees: [user.login] }})
+          body: JSON.stringify({{ body: 'request' }})
         }});
-        if (!r1.ok) throw new Error('assign failed: ' + r1.status);
-        // Add comment
-        await fetch('https://api.github.com/repos/' + ORG + '/' + repo + '/issues/' + number + '/comments', {{
-          method: 'POST',
-          headers: {{ 'Authorization': 'token ' + token, 'Content-Type': 'application/json' }},
-          body: JSON.stringify({{ body: '\U0001F64B I am reserving this issue and will work on it.' }})
-        }});
+        if (!r.ok) throw new Error('comment failed: ' + r.status);
         _claimedSet.add(repo + '#' + number);
-        btn.textContent = '\u2713 Claimed';
+        btn.textContent = '\u2713 Requested';
         btn.classList.add('claimed');
       }} catch(err) {{
         btn.disabled = false;
