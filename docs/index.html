@@ -4,78 +4,264 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FLL Scoreboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:            #0D1117;
+      --surface:       #161B22;
+      --surface-hover: #1C2128;
+      --border:        #30363D;
+      --border-subtle: #21262D;
+      --text-primary:  #E6EDF3;
+      --text-secondary:#8B949E;
+      --text-muted:    #6E7681;
+      --accent:        #2F81F7;
+      --green:         #3FB950;
+      --gold:          #D4A017;
+      --silver:        #A0AEC0;
+      --bronze:        #B87333;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0d1117; color: #e6edf3; min-height: 100vh;
+      font-family: 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      font-size: 16px;
+      line-height: 1.5;
     }
+
     header {
-      background: #161b22; border-bottom: 1px solid #30363d;
-      padding: 24px 32px; display: flex; align-items: center; gap: 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
     }
-    header h1 { font-size: 1.4rem; font-weight: 700; color: #58a6ff; }
-    header p  { color: #8b949e; font-size: 0.8rem; margin-top: 2px; }
-    .container { max-width: 860px; margin: 32px auto; padding: 0 20px; }
+    .header-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+    header h1 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+    header .org {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 20px;
+    }
+
+    /* Stats */
     .stats {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 12px; margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
     }
     .stat {
-      background: #161b22; border: 1px solid #30363d;
-      border-radius: 8px; padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
     }
-    .stat .value { font-size: 1.6rem; font-weight: 700; color: #58a6ff; }
-    .stat .label { font-size: 0.7rem; color: #8b949e; margin-top: 2px;
-                    text-transform: uppercase; letter-spacing: .06em; }
-    table {
-      width: 100%; border-collapse: collapse;
-      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    .stat .value {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .stat .label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+    }
+
+    /* Table */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
       overflow: hidden;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 540px;
+    }
+    thead tr {
+      background: var(--surface-hover);
+      border-bottom: 1px solid var(--border);
     }
     th {
-      padding: 10px 14px; text-align: left; font-size: 0.7rem;
-      text-transform: uppercase; letter-spacing: .06em;
-      color: #8b949e; background: #21262d; border-bottom: 1px solid #30363d;
+      padding: 10px 16px;
+      text-align: left;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      white-space: nowrap;
     }
-    td { padding: 13px 14px; border-bottom: 1px solid #21262d; font-size: 0.88rem; }
+    th.align-right { text-align: right; }
+    td {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.88rem;
+      vertical-align: middle;
+    }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #1c2128; }
-    td.rank  { font-size: 1.1rem; width: 60px; text-align: center; }
-    td.team  { font-weight: 600; }
-    .team-members { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .member  {
-      display: flex; align-items: center; gap: 8px;
-      text-decoration: none; color: #e6edf3;
+    tbody tr { transition: background 150ms ease; }
+    tbody tr:hover td { background: var(--surface-hover); }
+
+    /* Top 3 left accent */
+    .row-top-1 td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+    .row-top-2 td:first-child { box-shadow: inset 3px 0 0 var(--silver); }
+    .row-top-3 td:first-child { box-shadow: inset 3px 0 0 var(--bronze); }
+
+    /* Rank */
+    .col-rank { width: 56px; text-align: center; }
+    .rank-badge {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-muted);
     }
-    .member:hover { color: #58a6ff; }
-    .member:hover .avatar { border-color: #58a6ff; }
-    .avatar  {
-      width: 32px; height: 32px; border-radius: 50%;
-      border: 2px solid #30363d; flex-shrink: 0;
+    .rank-badge.rank-1 { color: var(--gold); }
+    .rank-badge.rank-2 { color: var(--silver); }
+    .rank-badge.rank-3 { color: var(--bronze); }
+
+    /* Team */
+    .col-team { font-weight: 500; }
+    .team-members {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
-    td.pts   { color: #8b949e; font-variant-numeric: tabular-nums; }
-    td.total { font-weight: 700; color: #3fb950;
-                font-variant-numeric: tabular-nums; font-size: 1rem; }
-    .sub { display: block; font-size: 0.7rem; color: #6e7681; margin-top: 2px; }
+    .member {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      transition: color 150ms ease;
+      cursor: pointer;
+    }
+    .member:hover { color: var(--accent); }
+    .member:hover .avatar { border-color: var(--accent); }
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      flex-shrink: 0;
+      display: block;
+    }
+
+    /* Points */
+    .col-pts { text-align: right; }
+    .pts-value {
+      display: block;
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .pts-sub {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Total */
+    .col-total {
+      text-align: right;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--green);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Rules */
     .rules {
-      margin-top: 24px; background: #161b22; border: 1px solid #30363d;
-      border-radius: 8px; padding: 16px 20px; font-size: 0.8rem; color: #8b949e;
+      margin-top: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
     }
-    .rules h2 { color: #e6edf3; font-size: 0.85rem; margin-bottom: 8px; }
-    .rules li { margin-left: 16px; margin-top: 4px; line-height: 1.5; }
-    .updated { text-align: center; color: #6e7681; font-size: 0.72rem; margin-top: 12px; }
+    .rules h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .rules ul { list-style: none; }
+    .rules li {
+      padding: 3px 0 3px 12px;
+      position: relative;
+    }
+    .rules li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+
+    .updated {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      margin-top: 12px;
+    }
+
     @media (max-width: 600px) {
       .stats { grid-template-columns: 1fr 1fr; }
       header { padding: 16px; }
+      .header-inner { flex-direction: column; gap: 4px; }
+      .container { padding: 0 12px; margin: 20px auto; }
     }
   </style>
 </head>
 <body>
   <header>
-    <div>
-      <h1>First Lego League — Scoreboard</h1>
-      <p>UdL EPS SoftArch Igualada</p>
+    <div class="header-inner">
+      <h1>FLL Scoreboard</h1>
+      <span class="org">UdL EPS SoftArch Igualada</span>
     </div>
   </header>
   <div class="container">
@@ -90,96 +276,158 @@
       </div>
       <div class="stat">
         <div class="value">108.2</div>
-        <div class="label">Story Points totales</div>
+        <div class="label">Story Points</div>
       </div>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Pos</th>
-          <th>Equipo</th>
-          <th>Pts Creación</th>
-          <th>Pts Implementación</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-      <tbody>
-            <tr>
-              <td class="rank">🥇</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/polMarsol" target="_blank" class="member"><img src="https://github.com/polMarsol.png?size=48" alt="polMarsol" class="avatar"><span>polMarsol</span></a> & <a href="https://github.com/MartiFarranC" target="_blank" class="member"><img src="https://github.com/MartiFarranC.png?size=48" alt="MartiFarranC" class="avatar"><span>MartiFarranC</span></a></div></td>
-              <td class="pts">2.50<span class="sub">(10 issues)</span></td>
-              <td class="pts">22.75<span class="sub">(17 issues)</span></td>
-              <td class="total">25.25</td>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-rank">Pos</th>
+            <th>Equipo</th>
+            <th class="align-right">Pts Creacion</th>
+            <th class="align-right">Pts Implementacion</th>
+            <th class="align-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+            <tr class="row-top-1">
+              <td class="col-rank"><span class="rank-badge rank-1">1</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/polMarsol" target="_blank" class="member" aria-label="polMarsol"><img src="https://github.com/polMarsol.png?size=56" alt="polMarsol" class="avatar" width="28" height="28"><span>polMarsol</span></a><a href="https://github.com/MartiFarranC" target="_blank" class="member" aria-label="MartiFarranC"><img src="https://github.com/MartiFarranC.png?size=56" alt="MartiFarranC" class="avatar" width="28" height="28"><span>MartiFarranC</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">2.50</span>
+                <span class="pts-sub">10 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">22.75</span>
+                <span class="pts-sub">17 issues</span>
+              </td>
+              <td class="col-total">25.25</td>
             </tr>
-            <tr>
-              <td class="rank">🥈</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/Ferranicu" target="_blank" class="member"><img src="https://github.com/Ferranicu.png?size=48" alt="Ferranicu" class="avatar"><span>Ferranicu</span></a> & <a href="https://github.com/DanGxG" target="_blank" class="member"><img src="https://github.com/DanGxG.png?size=48" alt="DanGxG" class="avatar"><span>DanGxG</span></a></div></td>
-              <td class="pts">0.25<span class="sub">(1 issues)</span></td>
-              <td class="pts">24.75<span class="sub">(14 issues)</span></td>
-              <td class="total">25.00</td>
+            <tr class="row-top-2">
+              <td class="col-rank"><span class="rank-badge rank-2">2</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/Ferranicu" target="_blank" class="member" aria-label="Ferranicu"><img src="https://github.com/Ferranicu.png?size=56" alt="Ferranicu" class="avatar" width="28" height="28"><span>Ferranicu</span></a><a href="https://github.com/DanGxG" target="_blank" class="member" aria-label="DanGxG"><img src="https://github.com/DanGxG.png?size=56" alt="DanGxG" class="avatar" width="28" height="28"><span>DanGxG</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">0.25</span>
+                <span class="pts-sub">1 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">24.75</span>
+                <span class="pts-sub">14 issues</span>
+              </td>
+              <td class="col-total">25.00</td>
             </tr>
-            <tr>
-              <td class="rank">🥉</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/oRioL-04" target="_blank" class="member"><img src="https://github.com/oRioL-04.png?size=48" alt="oRioL-04" class="avatar"><span>oRioL-04</span></a> & <a href="https://github.com/kirklan34" target="_blank" class="member"><img src="https://github.com/kirklan34.png?size=48" alt="kirklan34" class="avatar"><span>kirklan34</span></a></div></td>
-              <td class="pts">2.50<span class="sub">(10 issues)</span></td>
-              <td class="pts">11.25<span class="sub">(12 issues)</span></td>
-              <td class="total">13.75</td>
+            <tr class="row-top-3">
+              <td class="col-rank"><span class="rank-badge rank-3">3</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/oRioL-04" target="_blank" class="member" aria-label="oRioL-04"><img src="https://github.com/oRioL-04.png?size=56" alt="oRioL-04" class="avatar" width="28" height="28"><span>oRioL-04</span></a><a href="https://github.com/kirklan34" target="_blank" class="member" aria-label="kirklan34"><img src="https://github.com/kirklan34.png?size=56" alt="kirklan34" class="avatar" width="28" height="28"><span>kirklan34</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">2.50</span>
+                <span class="pts-sub">10 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">11.25</span>
+                <span class="pts-sub">12 issues</span>
+              </td>
+              <td class="col-total">13.75</td>
             </tr>
-            <tr>
-              <td class="rank">#4</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/MireiaTerri" target="_blank" class="member"><img src="https://github.com/MireiaTerri.png?size=48" alt="MireiaTerri" class="avatar"><span>MireiaTerri</span></a> & <a href="https://github.com/xertrec" target="_blank" class="member"><img src="https://github.com/xertrec.png?size=48" alt="xertrec" class="avatar"><span>xertrec</span></a></div></td>
-              <td class="pts">1.75<span class="sub">(7 issues)</span></td>
-              <td class="pts">11.25<span class="sub">(9 issues)</span></td>
-              <td class="total">13.00</td>
+            <tr class="">
+              <td class="col-rank"><span class="rank-badge ">4</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/MireiaTerri" target="_blank" class="member" aria-label="MireiaTerri"><img src="https://github.com/MireiaTerri.png?size=56" alt="MireiaTerri" class="avatar" width="28" height="28"><span>MireiaTerri</span></a><a href="https://github.com/xertrec" target="_blank" class="member" aria-label="xertrec"><img src="https://github.com/xertrec.png?size=56" alt="xertrec" class="avatar" width="28" height="28"><span>xertrec</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">1.75</span>
+                <span class="pts-sub">7 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">11.25</span>
+                <span class="pts-sub">9 issues</span>
+              </td>
+              <td class="col-total">13.00</td>
             </tr>
-            <tr>
-              <td class="rank">#5</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/Jakub2504" target="_blank" class="member"><img src="https://github.com/Jakub2504.png?size=48" alt="Jakub2504" class="avatar"><span>Jakub2504</span></a> & <a href="https://github.com/Mooliner" target="_blank" class="member"><img src="https://github.com/Mooliner.png?size=48" alt="Mooliner" class="avatar"><span>Mooliner</span></a></div></td>
-              <td class="pts">0.00<span class="sub">(0 issues)</span></td>
-              <td class="pts">13.00<span class="sub">(9 issues)</span></td>
-              <td class="total">13.00</td>
+            <tr class="">
+              <td class="col-rank"><span class="rank-badge ">5</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/Jakub2504" target="_blank" class="member" aria-label="Jakub2504"><img src="https://github.com/Jakub2504.png?size=56" alt="Jakub2504" class="avatar" width="28" height="28"><span>Jakub2504</span></a><a href="https://github.com/Mooliner" target="_blank" class="member" aria-label="Mooliner"><img src="https://github.com/Mooliner.png?size=56" alt="Mooliner" class="avatar" width="28" height="28"><span>Mooliner</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">0.00</span>
+                <span class="pts-sub">0 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">13.00</span>
+                <span class="pts-sub">9 issues</span>
+              </td>
+              <td class="col-total">13.00</td>
             </tr>
-            <tr>
-              <td class="rank">#6</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/Niltm35" target="_blank" class="member"><img src="https://github.com/Niltm35.png?size=48" alt="Niltm35" class="avatar"><span>Niltm35</span></a> & <a href="https://github.com/espitijungle" target="_blank" class="member"><img src="https://github.com/espitijungle.png?size=48" alt="espitijungle" class="avatar"><span>espitijungle</span></a></div></td>
-              <td class="pts">5.00<span class="sub">(20 issues)</span></td>
-              <td class="pts">4.75<span class="sub">(5 issues)</span></td>
-              <td class="total">9.75</td>
+            <tr class="">
+              <td class="col-rank"><span class="rank-badge ">6</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/Niltm35" target="_blank" class="member" aria-label="Niltm35"><img src="https://github.com/Niltm35.png?size=56" alt="Niltm35" class="avatar" width="28" height="28"><span>Niltm35</span></a><a href="https://github.com/espitijungle" target="_blank" class="member" aria-label="espitijungle"><img src="https://github.com/espitijungle.png?size=56" alt="espitijungle" class="avatar" width="28" height="28"><span>espitijungle</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">5.00</span>
+                <span class="pts-sub">20 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">4.75</span>
+                <span class="pts-sub">5 issues</span>
+              </td>
+              <td class="col-total">9.75</td>
             </tr>
-            <tr>
-              <td class="rank">#7</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/IvonneHernan" target="_blank" class="member"><img src="https://github.com/IvonneHernan.png?size=48" alt="IvonneHernan" class="avatar"><span>IvonneHernan</span></a> & <a href="https://github.com/nigelboada" target="_blank" class="member"><img src="https://github.com/nigelboada.png?size=48" alt="nigelboada" class="avatar"><span>nigelboada</span></a></div></td>
-              <td class="pts">1.00<span class="sub">(4 issues)</span></td>
-              <td class="pts">7.50<span class="sub">(4 issues)</span></td>
-              <td class="total">8.50</td>
+            <tr class="">
+              <td class="col-rank"><span class="rank-badge ">7</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/IvonneHernan" target="_blank" class="member" aria-label="IvonneHernan"><img src="https://github.com/IvonneHernan.png?size=56" alt="IvonneHernan" class="avatar" width="28" height="28"><span>IvonneHernan</span></a><a href="https://github.com/nigelboada" target="_blank" class="member" aria-label="nigelboada"><img src="https://github.com/nigelboada.png?size=56" alt="nigelboada" class="avatar" width="28" height="28"><span>nigelboada</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">1.00</span>
+                <span class="pts-sub">4 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">7.50</span>
+                <span class="pts-sub">4 issues</span>
+              </td>
+              <td class="col-total">8.50</td>
             </tr>
-            <tr>
-              <td class="rank">#8</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/xji650" target="_blank" class="member"><img src="https://github.com/xji650.png?size=48" alt="xji650" class="avatar"><span>xji650</span></a> & <a href="https://github.com/xBlanco998" target="_blank" class="member"><img src="https://github.com/xBlanco998.png?size=48" alt="xBlanco998" class="avatar"><span>xBlanco998</span></a></div></td>
-              <td class="pts">0.75<span class="sub">(3 issues)</span></td>
-              <td class="pts">3.25<span class="sub">(3 issues)</span></td>
-              <td class="total">4.00</td>
+            <tr class="">
+              <td class="col-rank"><span class="rank-badge ">8</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/xji650" target="_blank" class="member" aria-label="xji650"><img src="https://github.com/xji650.png?size=56" alt="xji650" class="avatar" width="28" height="28"><span>xji650</span></a><a href="https://github.com/xBlanco998" target="_blank" class="member" aria-label="xBlanco998"><img src="https://github.com/xBlanco998.png?size=56" alt="xBlanco998" class="avatar" width="28" height="28"><span>xBlanco998</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">0.75</span>
+                <span class="pts-sub">3 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">3.25</span>
+                <span class="pts-sub">3 issues</span>
+              </td>
+              <td class="col-total">4.00</td>
             </tr>
-            <tr>
-              <td class="rank">#9</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/Janics22" target="_blank" class="member"><img src="https://github.com/Janics22.png?size=48" alt="Janics22" class="avatar"><span>Janics22</span></a> & <a href="https://github.com/ikeerwp" target="_blank" class="member"><img src="https://github.com/ikeerwp.png?size=48" alt="ikeerwp" class="avatar"><span>ikeerwp</span></a></div></td>
-              <td class="pts">0.25<span class="sub">(1 issues)</span></td>
-              <td class="pts">3.50<span class="sub">(3 issues)</span></td>
-              <td class="total">3.75</td>
+            <tr class="">
+              <td class="col-rank"><span class="rank-badge ">9</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/Janics22" target="_blank" class="member" aria-label="Janics22"><img src="https://github.com/Janics22.png?size=56" alt="Janics22" class="avatar" width="28" height="28"><span>Janics22</span></a><a href="https://github.com/ikeerwp" target="_blank" class="member" aria-label="ikeerwp"><img src="https://github.com/ikeerwp.png?size=56" alt="ikeerwp" class="avatar" width="28" height="28"><span>ikeerwp</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">0.25</span>
+                <span class="pts-sub">1 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">3.50</span>
+                <span class="pts-sub">3 issues</span>
+              </td>
+              <td class="col-total">3.75</td>
             </tr>
-            <tr>
-              <td class="rank">#10</td>
-              <td class="team"><div class="team-members"><a href="https://github.com/cesar606" target="_blank" class="member"><img src="https://github.com/cesar606.png?size=48" alt="cesar606" class="avatar"><span>cesar606</span></a> & <a href="https://github.com/mikaropa11" target="_blank" class="member"><img src="https://github.com/mikaropa11.png?size=48" alt="mikaropa11" class="avatar"><span>mikaropa11</span></a></div></td>
-              <td class="pts">0.25<span class="sub">(1 issues)</span></td>
-              <td class="pts">2.25<span class="sub">(2 issues)</span></td>
-              <td class="total">2.50</td>
+            <tr class="">
+              <td class="col-rank"><span class="rank-badge ">10</span></td>
+              <td class="col-team"><div class="team-members"><a href="https://github.com/cesar606" target="_blank" class="member" aria-label="cesar606"><img src="https://github.com/cesar606.png?size=56" alt="cesar606" class="avatar" width="28" height="28"><span>cesar606</span></a><a href="https://github.com/mikaropa11" target="_blank" class="member" aria-label="mikaropa11"><img src="https://github.com/mikaropa11.png?size=56" alt="mikaropa11" class="avatar" width="28" height="28"><span>mikaropa11</span></a></div></td>
+              <td class="col-pts">
+                <span class="pts-value">0.25</span>
+                <span class="pts-sub">1 issues</span>
+              </td>
+              <td class="col-pts">
+                <span class="pts-value">2.25</span>
+                <span class="pts-sub">2 issues</span>
+              </td>
+              <td class="col-total">2.50</td>
             </tr>
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
 
     <div class="rules">
-      <h2>Reglas de puntuación</h2>
+      <h2>Reglas de puntuacion</h2>
       <ul>
         <li>Crear una issue (que acabe en Done): <strong>+0.25 pts</strong> al equipo creador</li>
         <li>Implementar una issue de otro equipo: <strong>+SP completos</strong> al equipo implementador</li>
@@ -188,7 +436,7 @@
       </ul>
     </div>
 
-    <p class="updated">Ultima actualizacion: 2026-04-15 20:22 UTC</p>
+    <p class="updated">Ultima actualizacion: 2026-04-15 20:40 UTC</p>
   </div>
 </body>
 </html>
