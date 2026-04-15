@@ -115,16 +115,6 @@ def fetch_done_issues(repo):
         page_info = issues_data.get("pageInfo", {})
 
         for issue in nodes:
-            # Only count issues closed by a merged PR
-            timeline = issue.get("timelineItems", {}).get("nodes", [])
-            closed_by_merged_pr = False
-            if timeline:
-                closer = (timeline[0] or {}).get("closer") or {}
-                if closer.get("__typename") == "PullRequest" and closer.get("merged"):
-                    closed_by_merged_pr = True
-            if not closed_by_merged_pr:
-                continue
-
             # Extract story points from labels
             labels = [l["name"] for l in issue.get("labels", {}).get("nodes", [])]
             sp = next((STORY_POINTS_MAP[lb] for lb in labels if lb in STORY_POINTS_MAP), None)
