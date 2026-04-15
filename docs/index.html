@@ -591,6 +591,81 @@
       color: var(--text-muted); font-size: 0.82rem;
     }
 
+    /* ── Hall of Fame card ──────────────────────────────────────── */
+    .hof-card {
+      background: var(--surface);
+      border: 1px solid rgba(212,160,23,0.28);
+      border-radius: 6px;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: border-color 200ms ease, background 150ms ease;
+    }
+    .hof-card:hover { border-color: var(--gold); background: var(--surface-hover); }
+    [data-theme="light"] .hof-card { border-color: rgba(154,103,0,0.2); }
+    [data-theme="light"] .hof-card:hover { border-color: var(--gold); }
+    .hof-label {
+      font-size: 0.65rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--gold); margin-bottom: 3px;
+    }
+    .hof-winner-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem; font-weight: 700;
+      color: var(--text-primary);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .hof-week-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+    .hof-pts-badge { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; }
+    .hof-pts-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.6rem; font-weight: 700; color: var(--gold); line-height: 1;
+    }
+    .hof-pts-lbl { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-top: 3px; }
+    .hof-see-more {
+      font-size: 0.72rem; color: var(--text-muted);
+      white-space: nowrap; display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+    }
+    /* Hall of Fame modal */
+    .hof-scroll { flex: 1; overflow-y: auto; }
+    .hof-week-row {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 150ms ease;
+    }
+    .hof-week-row:last-child { border-bottom: none; }
+    .hof-week-row:hover { background: var(--surface-hover); }
+    .hof-wk-label {
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted);
+      min-width: 68px; padding-top: 3px; flex-shrink: 0;
+    }
+    .hof-wk-label.current { color: var(--accent); }
+    .hof-wk-body { flex: 1; min-width: 0; }
+    .hof-wk-winner {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 7px;
+    }
+    .hof-wk-winner-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700; font-size: 0.95rem; color: var(--text-primary);
+    }
+    .hof-wk-pts {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem; font-weight: 700; color: var(--gold);
+      margin-left: auto; white-space: nowrap;
+    }
+    .hof-wk-others { display: flex; flex-wrap: wrap; gap: 4px; }
+    .hof-other-pill {
+      font-size: 0.7rem; color: var(--text-muted);
+      background: var(--surface-hover); border: 1px solid var(--border-subtle);
+      border-radius: 4px; padding: 2px 8px; font-variant-numeric: tabular-nums;
+    }
+
     @media (max-width: 900px) {
       .stats { grid-template-columns: repeat(3, 1fr); }  /* already 3, no change needed */
     }
@@ -643,6 +718,35 @@
       <div class="stat">
         <div class="value">108.2</div>
         <div class="label">Story Points</div>
+      </div>
+    </div>
+
+    <!-- Hall of Fame card -->
+    <div class="hof-card" id="hof-card" onclick="openHallOfFame()" aria-label="Hall of Fame">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+           style="width:30px;height:30px;color:var(--gold);flex-shrink:0">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+        <path d="M4 22h16"/>
+        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+      </svg>
+      <div id="hof-card-body" style="min-width:0;flex:1">
+        <div class="hof-label">Hall of Fame</div>
+        <div class="hof-winner-name" style="color:var(--text-muted);font-size:0.82rem">Loading&hellip;</div>
+      </div>
+      <div class="hof-pts-badge" id="hof-card-pts" style="display:none">
+        <div class="hof-pts-num" id="hof-pts-num">—</div>
+        <div class="hof-pts-lbl" id="hof-pts-lbl">pts this week</div>
+      </div>
+      <div class="hof-see-more">
+        All weeks
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
       </div>
     </div>
 
@@ -895,7 +999,7 @@
     </div>
 
     <div class="live-row">
-      <span class="updated">Last updated: 2026-04-15 22:26 UTC</span>
+      <span class="updated">Last updated: 2026-04-15 22:36 UTC</span>
       <span class="live-indicator">
         <span class="live-dot"></span>
         Next update in <span id="countdown">--:--</span>
@@ -917,6 +1021,29 @@
       <div class="detail-table-area">
         <div id="detail-content"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Hall of Fame modal -->
+  <div id="hof-modal" class="modal-overlay" onclick="handleHofOverlayClick(event)">
+    <div class="modal-box" style="max-width:640px">
+      <div class="modal-header">
+        <span class="modal-title" style="display:flex;align-items:center;gap:8px">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+               style="width:16px;height:16px;color:var(--gold)">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+          </svg>
+          Hall of Fame
+        </span>
+        <button class="modal-close" onclick="closeHallOfFame()" aria-label="Close">&times;</button>
+      </div>
+      <div class="hof-scroll" id="hof-list"></div>
     </div>
   </div>
 
@@ -1285,8 +1412,104 @@
     }
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { closeChart(); closeTeamModal(); }
+      if (e.key === 'Escape') { closeChart(); closeTeamModal(); closeHallOfFame(); }
     });
+
+    // ── Hall of Fame ──────────────────────────────────────────────────────────
+    function computeHallOfFame() {
+      var weeks = {};
+      ISSUES.forEach(function(e) {
+        if (!e.date) return;
+        var wk = periodKey(e.date, 'week');
+        if (!weeks[wk]) weeks[wk] = {};
+        if (!weeks[wk][e.impl_team]) weeks[wk][e.impl_team] = 0;
+        weeks[wk][e.impl_team] += e.score;
+      });
+      return Object.keys(weeks).sort().reverse().map(function(wk) {
+        var entries = Object.entries(weeks[wk]).sort(function(a, b) { return b[1] - a[1]; });
+        return { week: wk, winner: entries[0][0], score: entries[0][1], all: entries };
+      });
+    }
+
+    function currentISOWeek() {
+      var now = new Date();
+      var day = now.getUTCDay() || 7;
+      var mon = new Date(now);
+      mon.setUTCDate(now.getUTCDate() - day + 1);
+      return mon.toISOString().slice(0, 10);
+    }
+
+    function hofAvatars(teamName, size, overlap) {
+      return (MEMBERS[teamName] || []).slice(0, 2).map(function(m) {
+        return '<img src="https://github.com/' + m + '.png?size=56" width="' + size + '" height="' + size + '" ' +
+               'alt="' + m + '" style="border-radius:50%;border:1.5px solid var(--border);margin-right:' + (-overlap) + 'px">';
+      }).join('');
+    }
+
+    function renderHofCard() {
+      var hof = computeHallOfFame();
+      if (!hof.length) return;
+      var top = hof[0];
+      var isCurrent = top.week === currentISOWeek();
+      var weekLbl  = isCurrent ? 'This Week' : fmtLabel(top.week, 'week');
+      var sub      = isCurrent ? 'Leading this week' : 'Best week so far';
+      document.getElementById('hof-card-body').innerHTML =
+        '<div class="hof-label">Hall of Fame &mdash; ' + weekLbl + '</div>' +
+        '<div class="hof-winner-name">' +
+          '<span style="display:flex;gap:2px">' + hofAvatars(top.winner, 24, 6) + '</span>' +
+          '<span style="margin-left:8px">' + top.winner + '</span>' +
+        '</div>' +
+        '<div class="hof-week-sub">' + sub + '</div>';
+      document.getElementById('hof-pts-num').textContent = top.score.toFixed(2);
+      document.getElementById('hof-pts-lbl').textContent = isCurrent ? 'pts this week' : 'pts that week';
+      document.getElementById('hof-card-pts').style.display = '';
+    }
+
+    function openHallOfFame() {
+      var hof = computeHallOfFame();
+      var thisWeek = currentISOWeek();
+      var list = document.getElementById('hof-list');
+      if (!hof.length) {
+        list.innerHTML = '<p class="no-issues">No data yet.</p>';
+      } else {
+        var medals = ['🥇', '🥈', '🥉'];
+        list.innerHTML = hof.map(function(entry, idx) {
+          var isCurrent = entry.week === thisWeek;
+          var medal   = medals[idx] || '';
+          var avatars = hofAvatars(entry.winner, 22, 5);
+          var others  = entry.all.slice(1).map(function(e) {
+            return '<span class="hof-other-pill">' + e[0] + ' &middot; ' + e[1].toFixed(2) + ' pts</span>';
+          }).join('');
+          return '<div class="hof-week-row">' +
+            '<div class="hof-wk-label' + (isCurrent ? ' current' : '') + '">' +
+              (isCurrent ? 'This week' : fmtLabel(entry.week, 'week')) +
+            '</div>' +
+            '<div class="hof-wk-body">' +
+              '<div class="hof-wk-winner">' +
+                (medal ? '<span style="font-size:1.1rem;line-height:1">' + medal + '</span>' : '') +
+                '<span style="display:flex;gap:3px">' + avatars + '</span>' +
+                '<span class="hof-wk-winner-name">' + entry.winner + '</span>' +
+                '<span class="hof-wk-pts">' + entry.score.toFixed(2) + ' pts</span>' +
+              '</div>' +
+              (others ? '<div class="hof-wk-others">' + others + '</div>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+      document.getElementById('hof-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeHallOfFame() {
+      document.getElementById('hof-modal').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function handleHofOverlayClick(e) {
+      if (e.target === document.getElementById('hof-modal')) closeHallOfFame();
+    }
+
+    renderHofCard();
   </script>
 
   <script>
