@@ -28,6 +28,8 @@ jobs:
       - name: Generate scoreboard
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          OAUTH_CLIENT_ID:  ${{ secrets.OAUTH_CLIENT_ID }}
+          OAUTH_WORKER_URL: ${{ secrets.OAUTH_WORKER_URL }}
         run: python scripts/generate.py
 
       - name: Commit and push if changed

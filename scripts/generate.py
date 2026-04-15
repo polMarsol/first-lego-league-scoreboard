@@ -42,6 +42,11 @@ CHART_COLORS = [
     "#56D364", "#E5C07B", "#58A6FF", "#F0883E",
 ]
 
+# ── OAuth (GitHub OAuth App + Cloudflare Worker proxy) ─────────────────────────
+# Set these as GitHub Actions secrets: OAUTH_CLIENT_ID, OAUTH_WORKER_URL
+OAUTH_CLIENT_ID  = os.environ.get("OAUTH_CLIENT_ID", "")
+OAUTH_WORKER_URL = os.environ.get("OAUTH_WORKER_URL", "")
+
 # ── Teams ───────────────────────────────────────────────────────────────────────
 
 def fetch_teams():
@@ -131,9 +136,11 @@ def fetch_project_issues():
     Returns:
         done_issues  — Status='Done' + has SP label  (used for scoring)
         coin_issues  — has 🪙 label + has SP label, any status  (used for balance)
+        open_issues  — Status!='Done' + has SP label  (shown in Reserve modal)
     """
     done = []
     coin = []
+    open_issues = []
     cursor = None
 
     while True:
@@ -161,6 +168,8 @@ def fetch_project_issues():
             if sp is None:
                 continue  # No SP label → irrelevant for both scoring and balance
 
+            status = (item.get("status") or {}).get("name", "")
+
             # Extract PR author who closed the issue
             tl_nodes = content.get("timelineItems", {}).get("nodes", [])
             closer = ""
@@ -169,10 +178,11 @@ def fetch_project_issues():
                 closer_author = (closer_obj.get("author") or {})
                 closer        = closer_author.get("login", "") or ""
 
+            repo = (content.get("repository") or {}).get("name", "")
             issue = {
                 "number":       content["number"],
                 "title":        content["title"],
-                "repo":         (content.get("repository") or {}).get("name", ""),
+                "repo":         repo,
                 "creator":      (content.get("author") or {}).get("login"),
                 "assignees":    [a["login"] for a in content.get("assignees", {}).get("nodes", [])],
                 "story_points": sp,
@@ -180,9 +190,18 @@ def fetch_project_issues():
                 "closer":       closer,
             }
 
-            status = (item.get("status") or {}).get("name", "")
             if "done" in status.lower():
                 done.append(issue)
+            else:
+                open_issues.append({
+                    "number":    content["number"],
+                    "title":     content["title"],
+                    "repo":      repo,
+                    "sp":        sp,
+                    "status":    status,
+                    "assignees": [a["login"] for a in content.get("assignees", {}).get("nodes", [])],
+                    "creator":   (content.get("author") or {}).get("login") or "",
+                })
 
             if COIN_LABEL in labels:
                 coin.append(issue)
@@ -191,7 +210,9 @@ def fetch_project_issues():
             break
         cursor = page_info["endCursor"]
 
-    return done, coin
+    # Sort open issues: unassigned first, then by SP descending
+    open_issues.sort(key=lambda i: (len(i["assignees"]) > 0, -i["sp"]))
+    return done, coin, open_issues
 
 # ── Scoring ─────────────────────────────────────────────────────────────────────
 
@@ -305,7 +326,7 @@ def rank_teams(teams, scores):
 
 # ── HTML ────────────────────────────────────────────────────────────────────────
 
-def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail):
+def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail, open_issues):
     rows = ""
     for pos, team_id in enumerate(ranked):
         team     = teams[team_id]
@@ -367,10 +388,13 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     total_sp      = sum(i["story_points"] for i in all_issues)
     teams_in_debt = sum(1 for i in range(len(teams)) if scores[i]["balance"] < 0)
 
-    team_names_json   = json.dumps([t["name"] for t in teams])
-    team_members_json = json.dumps({t["name"]: t["members"] for t in teams})
-    team_colors_json  = json.dumps(CHART_COLORS[:len(teams)])
+    team_names_json    = json.dumps([t["name"] for t in teams])
+    team_members_json  = json.dumps({t["name"]: t["members"] for t in teams})
+    team_colors_json   = json.dumps(CHART_COLORS[:len(teams)])
     issues_detail_json = json.dumps(issues_detail)
+    open_issues_json   = json.dumps(open_issues)
+    oauth_client_id    = json.dumps(OAUTH_CLIENT_ID)
+    oauth_worker_url   = json.dumps(OAUTH_WORKER_URL)
 
     return f"""<!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -972,6 +996,109 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       color: var(--text-muted); font-size: 0.82rem;
     }}
 
+    /* ── Reserve modal ──────────────────────────────────────────── */
+    .auth-bar {{
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--surface-hover);
+      font-size: 0.8rem;
+    }}
+    .gh-login-btn {{
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 14px;
+      background: var(--text-primary); color: var(--bg);
+      border: none; border-radius: 6px;
+      font-family: 'Barlow', sans-serif; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: opacity 150ms ease;
+    }}
+    .gh-login-btn:hover {{ opacity: 0.85; }}
+    .gh-login-btn svg {{ width: 16px; height: 16px; }}
+    .user-pill {{
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.82rem; color: var(--text-primary);
+    }}
+    .user-pill img {{
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 1.5px solid var(--border);
+    }}
+    .logout-btn {{
+      margin-left: auto;
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 4px; padding: 3px 10px;
+      color: var(--text-muted); font-family: 'Barlow', sans-serif;
+      font-size: 0.72rem; cursor: pointer;
+      transition: border-color 150ms ease, color 150ms ease;
+    }}
+    .logout-btn:hover {{ border-color: var(--red); color: var(--red); }}
+    .reserve-filters {{
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }}
+    .filter-select {{
+      padding: 5px 10px;
+      background: var(--surface-hover);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text-primary);
+      font-family: 'Barlow', sans-serif; font-size: 0.78rem;
+      cursor: pointer;
+    }}
+    .filter-check {{
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.78rem; color: var(--text-secondary); cursor: pointer;
+    }}
+    .filter-count {{
+      margin-left: auto;
+      font-size: 0.72rem; color: var(--text-muted);
+    }}
+    .issue-scroll {{ flex: 1; overflow-y: auto; }}
+    .issue-row {{
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background 150ms ease;
+    }}
+    .issue-row:last-child {{ border-bottom: none; }}
+    .issue-row:hover {{ background: var(--surface-hover); }}
+    .issue-num {{ font-size: 0.72rem; color: var(--text-muted); min-width: 40px; flex-shrink: 0; font-variant-numeric: tabular-nums; }}
+    .issue-title {{ flex: 1; min-width: 0; }}
+    .issue-title a {{ color: var(--text-primary); text-decoration: none; font-size: 0.85rem; font-weight: 500; }}
+    .issue-title a:hover {{ color: var(--accent); text-decoration: underline; }}
+    .issue-meta {{ display: flex; gap: 5px; margin-top: 4px; flex-wrap: wrap; align-items: center; }}
+    .chip {{
+      display: inline-block; padding: 1px 7px;
+      border-radius: 10px; font-size: 0.65rem; font-weight: 600;
+      border: 1px solid var(--border);
+      color: var(--text-muted); background: var(--surface-hover);
+      white-space: nowrap;
+    }}
+    .chip-sp {{ color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }}
+    .chip-todo {{ color: var(--green); border-color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }}
+    .chip-progress {{ color: #E5C07B; border-color: #E5C07B; background: color-mix(in srgb, #E5C07B 10%, transparent); }}
+    .issue-assignees {{ display: flex; gap: -4px; flex-shrink: 0; }}
+    .issue-assignees img {{ width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border); margin-right: -5px; }}
+    .claim-btn {{
+      flex-shrink: 0;
+      padding: 5px 14px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 5px;
+      font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      transition: opacity 150ms ease, background 150ms ease;
+    }}
+    .claim-btn:hover {{ opacity: 0.85; }}
+    .claim-btn:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; opacity: 1; }}
+    .claim-btn.claimed {{ background: var(--green); cursor: default; }}
+    .reserve-empty {{
+      text-align: center; padding: 40px 20px;
+      color: var(--text-muted); font-size: 0.85rem;
+    }}
+    .auth-notice {{
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.78rem; color: var(--text-muted);
+    }}
     /* ── Hall of Fame card ──────────────────────────────────────── */
     .hof-card {{
       background: var(--surface);
@@ -1067,6 +1194,13 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         <span class="org">UdL EPS SoftArch Igualada</span>
         <a href="https://firstlegoleague.win" target="_blank" class="site-link">firstlegoleague.win</a>
       </div>
+      <button class="chart-btn" onclick="openReserve()" aria-label="Reserve an issue">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+          <path d="M12 8v4l3 3"/>
+        </svg>
+        Reserve
+      </button>
       <button class="chart-btn" onclick="openChart()" aria-label="Score evolution chart">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -1167,6 +1301,53 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       </span>
     </div>
   </div>
+  <!-- Reserve Issue modal -->
+  <div id="reserve-modal" class="modal-overlay" onclick="handleReserveOverlayClick(event)">
+    <div class="modal-box" style="max-width:780px">
+      <div class="modal-header">
+        <span class="modal-title" style="display:flex;align-items:center;gap:8px">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+               style="width:16px;height:16px;color:var(--accent)">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+            <path d="M12 8v4l3 3"/>
+          </svg>
+          Reserve Issue
+        </span>
+        <button class="modal-close" onclick="closeReserve()" aria-label="Close">&times;</button>
+      </div>
+      <div class="auth-bar" id="reserve-auth-bar">
+        <span class="auth-notice">Sign in to claim issues directly from here</span>
+        <button class="gh-login-btn" onclick="loginWithGitHub()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.268 2.75 1.026A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.026 2.747-1.026.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+          </svg>
+          Sign in with GitHub
+        </button>
+      </div>
+      <div class="reserve-filters">
+        <select class="filter-select" id="filter-repo" onchange="renderIssueList()">
+          <option value="">All repos</option>
+        </select>
+        <select class="filter-select" id="filter-sp" onchange="renderIssueList()">
+          <option value="">All SP</option>
+          <option value="0.25">0.25</option>
+          <option value="0.5">0.5</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
+        <label class="filter-check">
+          <input type="checkbox" id="filter-unassigned" onchange="renderIssueList()">
+          Unassigned only
+        </label>
+        <span class="filter-count" id="filter-count"></span>
+      </div>
+      <div class="issue-scroll" id="issue-list"></div>
+    </div>
+  </div>
+
   <!-- Team detail modal -->
   <div id="team-modal" class="modal-overlay" onclick="handleTeamOverlayClick(event)">
     <div class="modal-box" style="max-width:800px">
@@ -1237,10 +1418,14 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
 
   <script>
     // ── Data injected by Python ───────────────────────────────────────────────
-    const ISSUES  = {issues_detail_json};
-    const TEAMS   = {team_names_json};
-    const MEMBERS = {team_members_json};
-    const COLORS  = {team_colors_json};
+    const ISSUES       = {issues_detail_json};
+    const TEAMS        = {team_names_json};
+    const MEMBERS      = {team_members_json};
+    const COLORS       = {team_colors_json};
+    const OPEN_ISSUES  = {open_issues_json};
+    const ORG          = "UdL-EPS-SoftArch-Igualada";
+    const CLIENT_ID    = {oauth_client_id};
+    const WORKER_URL   = {oauth_worker_url};
     // Derive flat chart events from rich issue data
     const RAW = ISSUES.map(e => ({{ date: e.date, team: e.impl_team, score: e.score, sp: e.sp }}));
 
@@ -1671,6 +1856,205 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     }}
 
     renderHofCard();
+
+    // ── Reserve Issue ─────────────────────────────────────────────────────────
+    var _claimedSet = new Set(); // issues claimed in this session
+
+    function getGhUser()  {{ return JSON.parse(localStorage.getItem('gh_user')  || 'null'); }}
+    function getGhToken() {{ return localStorage.getItem('gh_token') || ''; }}
+
+    function updateAuthBar() {{
+      var bar  = document.getElementById('reserve-auth-bar');
+      var user = getGhUser();
+      if (user) {{
+        bar.innerHTML =
+          '<div class="user-pill">' +
+            '<img src="' + user.avatar_url + '" alt="' + user.login + '">' +
+            '<span>Signed in as <strong>' + user.login + '</strong></span>' +
+          '</div>' +
+          '<button class="logout-btn" onclick="logoutGitHub()">Sign out</button>';
+      }} else {{
+        bar.innerHTML =
+          '<span class="auth-notice">Sign in to claim issues directly from here</span>' +
+          '<button class="gh-login-btn" onclick="loginWithGitHub()">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px">' +
+              '<path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.268 2.75 1.026A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.026 2.747-1.026.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>' +
+            '</svg>' +
+            'Sign in with GitHub' +
+          '</button>';
+      }}
+    }}
+
+    function loginWithGitHub() {{
+      if (!CLIENT_ID) {{
+        alert('OAuth not configured yet. Set OAUTH_CLIENT_ID in GitHub Actions secrets.');
+        return;
+      }}
+      var state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      localStorage.setItem('oauth_state', state);
+      localStorage.setItem('oauth_return', 'reserve'); // reopen modal on return
+      window.location.href = 'https://github.com/login/oauth/authorize' +
+        '?client_id=' + CLIENT_ID +
+        '&scope=public_repo' +
+        '&state=' + state;
+    }}
+
+    function logoutGitHub() {{
+      localStorage.removeItem('gh_token');
+      localStorage.removeItem('gh_user');
+      updateAuthBar();
+      renderIssueList();
+    }}
+
+    async function exchangeOAuthCode(code) {{
+      if (!WORKER_URL) return null;
+      try {{
+        var r = await fetch(WORKER_URL, {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ code }})
+        }});
+        return await r.json();
+      }} catch(e) {{ return null; }}
+    }}
+
+    async function handleOAuthCallback() {{
+      var params = new URLSearchParams(window.location.search);
+      var code  = params.get('code');
+      var state = params.get('state');
+      if (!code) return;
+      if (state !== localStorage.getItem('oauth_state')) return;
+      // Clean URL immediately
+      window.history.replaceState({{}}, '', window.location.pathname);
+      var data = await exchangeOAuthCode(code);
+      if (data && data.access_token) {{
+        localStorage.setItem('gh_token', data.access_token);
+        try {{
+          var userResp = await fetch('https://api.github.com/user', {{
+            headers: {{ 'Authorization': 'token ' + data.access_token }}
+          }});
+          var user = await userResp.json();
+          localStorage.setItem('gh_user', JSON.stringify(user));
+        }} catch(e) {{}}
+      }}
+      // Reopen reserve modal if that's where login was triggered
+      if (localStorage.getItem('oauth_return') === 'reserve') {{
+        localStorage.removeItem('oauth_return');
+        openReserve();
+      }}
+    }}
+
+    function openReserve() {{
+      populateRepoFilter();
+      updateAuthBar();
+      renderIssueList();
+      document.getElementById('reserve-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }}
+
+    function closeReserve() {{
+      document.getElementById('reserve-modal').classList.remove('open');
+      document.body.style.overflow = '';
+    }}
+
+    function handleReserveOverlayClick(e) {{
+      if (e.target === document.getElementById('reserve-modal')) closeReserve();
+    }}
+
+    function populateRepoFilter() {{
+      var repos = [...new Set(OPEN_ISSUES.map(i => i.repo).filter(Boolean))].sort();
+      var sel = document.getElementById('filter-repo');
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">All repos</option>' +
+        repos.map(r => '<option value="' + r + '"' + (r === cur ? ' selected' : '') + '>' + r + '</option>').join('');
+    }}
+
+    function filteredIssues() {{
+      var repo       = document.getElementById('filter-repo').value;
+      var sp         = parseFloat(document.getElementById('filter-sp').value) || 0;
+      var unassigned = document.getElementById('filter-unassigned').checked;
+      return OPEN_ISSUES.filter(function(i) {{
+        if (repo && i.repo !== repo) return false;
+        if (sp && i.sp !== sp) return false;
+        if (unassigned && i.assignees.length > 0) return false;
+        return true;
+      }});
+    }}
+
+    function renderIssueList() {{
+      var issues = filteredIssues();
+      var user   = getGhUser();
+      var token  = getGhToken();
+      document.getElementById('filter-count').textContent = issues.length + ' issue' + (issues.length !== 1 ? 's' : '');
+      var el = document.getElementById('issue-list');
+      if (!issues.length) {{
+        el.innerHTML = '<div class="reserve-empty">No issues match the current filters.</div>';
+        return;
+      }}
+      el.innerHTML = issues.map(function(issue) {{
+        var statusClass = issue.status.toLowerCase().includes('progress') ? 'chip-progress'
+                        : issue.status.toLowerCase().includes('todo') ? 'chip-todo' : '';
+        var assigneeImgs = issue.assignees.map(function(a) {{
+          return '<img src="https://github.com/' + a + '.png?size=40" title="' + a + '" alt="' + a + '">';
+        }}).join('');
+        var isClaimed = _claimedSet.has(issue.repo + '#' + issue.number);
+        var isAssignedToMe = user && issue.assignees.map(function(a){{return a.toLowerCase();}}).includes(user.login.toLowerCase());
+        var btnDisabled = !token ? '' : (isClaimed || isAssignedToMe ? ' disabled' : '');
+        var btnClass    = isClaimed || isAssignedToMe ? ' claimed' : '';
+        var btnText     = isClaimed ? '&#x2713; Claimed' : isAssignedToMe ? 'Already yours' : 'Claim';
+        var issueUrl    = 'https://github.com/' + ORG + '/' + (issue.repo || '_') + '/issues/' + issue.number;
+        return '<div class="issue-row" id="irow-' + issue.repo + '-' + issue.number + '">' +
+          '<span class="issue-num">#' + issue.number + '</span>' +
+          '<div class="issue-title">' +
+            '<a href="' + issueUrl + '" target="_blank">' + issue.title + '</a>' +
+            '<div class="issue-meta">' +
+              (issue.repo ? '<span class="chip">' + issue.repo + '</span>' : '') +
+              '<span class="chip chip-sp">' + issue.sp + ' SP</span>' +
+              (issue.status ? '<span class="chip ' + statusClass + '">' + issue.status + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+          (assigneeImgs ? '<div class="issue-assignees">' + assigneeImgs + '</div>' : '') +
+          (token
+            ? '<button class="claim-btn' + btnClass + '"' + btnDisabled +
+              ' onclick="claimIssue(\'' + issue.repo + '\',' + issue.number + ',this)">'+btnText+'</button>'
+            : '<button class="claim-btn" onclick="loginWithGitHub()">Sign in</button>'
+          ) +
+        '</div>';
+      }}).join('');
+    }}
+
+    async function claimIssue(repo, number, btn) {{
+      var token = getGhToken();
+      var user  = getGhUser();
+      if (!token || !user) {{ loginWithGitHub(); return; }}
+      btn.disabled = true;
+      btn.textContent = 'Claiming\u2026';
+      try {{
+        // Assign user to issue
+        var r1 = await fetch('https://api.github.com/repos/' + ORG + '/' + repo + '/issues/' + number + '/assignees', {{
+          method: 'POST',
+          headers: {{ 'Authorization': 'token ' + token, 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ assignees: [user.login] }})
+        }});
+        if (!r1.ok) throw new Error('assign failed: ' + r1.status);
+        // Add comment
+        await fetch('https://api.github.com/repos/' + ORG + '/' + repo + '/issues/' + number + '/comments', {{
+          method: 'POST',
+          headers: {{ 'Authorization': 'token ' + token, 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ body: '\U0001F64B I am reserving this issue and will work on it.' }})
+        }});
+        _claimedSet.add(repo + '#' + number);
+        btn.textContent = '\u2713 Claimed';
+        btn.classList.add('claimed');
+      }} catch(err) {{
+        btn.disabled = false;
+        btn.textContent = 'Retry';
+        console.error(err);
+      }}
+    }}
+
+    // Handle OAuth callback on page load
+    handleOAuthCallback();
   </script>
 
   <script>
@@ -1810,9 +2194,10 @@ def main():
     print(f"  {len(teams)} teams loaded")
 
     print("Fetching project issues...")
-    all_issues, coin_issues = fetch_project_issues()
+    all_issues, coin_issues, open_issues = fetch_project_issues()
     print(f"  {len(all_issues)} Done issues found")
     print(f"  {len(coin_issues)} budget-labeled issues found")
+    print(f"  {len(open_issues)} open issues found")
 
     scores = calculate_scores(teams, user_to_team, all_issues, coin_issues)
 
@@ -1826,7 +2211,7 @@ def main():
 
     issues_detail = build_issues_detail(teams, user_to_team, all_issues)
     generated_at  = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    html = generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail)
+    html = generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail, open_issues)
 
     out_path = os.path.join(out_dir, "index.html")
     with open(out_path, "w", encoding="utf-8") as f:
