@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FLL Scoreboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117; color: #e6edf3; min-height: 100vh;
+    }
+    header {
+      background: #161b22; border-bottom: 1px solid #30363d;
+      padding: 24px 32px; display: flex; align-items: center; gap: 16px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; color: #58a6ff; }
+    header p  { color: #8b949e; font-size: 0.8rem; margin-top: 2px; }
+    .container { max-width: 860px; margin: 32px auto; padding: 0 20px; }
+    .stats {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 12px; margin-bottom: 24px;
+    }
+    .stat {
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 8px; padding: 16px 20px;
+    }
+    .stat .value { font-size: 1.6rem; font-weight: 700; color: #58a6ff; }
+    .stat .label { font-size: 0.7rem; color: #8b949e; margin-top: 2px;
+                    text-transform: uppercase; letter-spacing: .06em; }
+    table {
+      width: 100%; border-collapse: collapse;
+      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+      overflow: hidden;
+    }
+    th {
+      padding: 10px 14px; text-align: left; font-size: 0.7rem;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: #8b949e; background: #21262d; border-bottom: 1px solid #30363d;
+    }
+    td { padding: 13px 14px; border-bottom: 1px solid #21262d; font-size: 0.88rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1c2128; }
+    td.rank  { font-size: 1.1rem; width: 60px; text-align: center; }
+    td.team  { font-weight: 600; }
+    td.pts   { color: #8b949e; font-variant-numeric: tabular-nums; }
+    td.total { font-weight: 700; color: #3fb950;
+                font-variant-numeric: tabular-nums; font-size: 1rem; }
+    .sub { display: block; font-size: 0.7rem; color: #6e7681; margin-top: 2px; }
+    .rules {
+      margin-top: 24px; background: #161b22; border: 1px solid #30363d;
+      border-radius: 8px; padding: 16px 20px; font-size: 0.8rem; color: #8b949e;
+    }
+    .rules h2 { color: #e6edf3; font-size: 0.85rem; margin-bottom: 8px; }
+    .rules li { margin-left: 16px; margin-top: 4px; line-height: 1.5; }
+    .updated { text-align: center; color: #6e7681; font-size: 0.72rem; margin-top: 12px; }
+    @media (max-width: 600px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      header { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>First Lego League — Scoreboard</h1>
+      <p>UdL EPS SoftArch Igualada</p>
+    </div>
+  </header>
+  <div class="container">
+    <div class="stats">
+      <div class="stat">
+        <div class="value">10</div>
+        <div class="label">Equipos</div>
+      </div>
+      <div class="stat">
+        <div class="value">73</div>
+        <div class="label">Issues en Done</div>
+      </div>
+      <div class="stat">
+        <div class="value">100.8</div>
+        <div class="label">Story Points totales</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Pos</th>
+          <th>Equipo</th>
+          <th>Pts Creación</th>
+          <th>Pts Implementación</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+            <tr>
+              <td class="rank">🥇</td>
+              <td class="team">polMarsol & MartiFarranC</td>
+              <td class="pts">2.50<span class="sub">(10 issues)</span></td>
+              <td class="pts">22.75<span class="sub">(17 issues)</span></td>
+              <td class="total">25.25</td>
+            </tr>
+            <tr>
+              <td class="rank">🥈</td>
+              <td class="team">Ferranicu & DanGxG</td>
+              <td class="pts">0.25<span class="sub">(1 issues)</span></td>
+              <td class="pts">24.75<span class="sub">(14 issues)</span></td>
+              <td class="total">25.00</td>
+            </tr>
+            <tr>
+              <td class="rank">🥉</td>
+              <td class="team">oRioL-04 & kirklan34</td>
+              <td class="pts">2.50<span class="sub">(10 issues)</span></td>
+              <td class="pts">11.25<span class="sub">(12 issues)</span></td>
+              <td class="total">13.75</td>
+            </tr>
+            <tr>
+              <td class="rank">#4</td>
+              <td class="team">MireiaTerri & xertrec</td>
+              <td class="pts">1.75<span class="sub">(7 issues)</span></td>
+              <td class="pts">11.25<span class="sub">(9 issues)</span></td>
+              <td class="total">13.00</td>
+            </tr>
+            <tr>
+              <td class="rank">#5</td>
+              <td class="team">Jakub2504 & Mooliner</td>
+              <td class="pts">0.00<span class="sub">(0 issues)</span></td>
+              <td class="pts">9.50<span class="sub">(7 issues)</span></td>
+              <td class="total">9.50</td>
+            </tr>
+            <tr>
+              <td class="rank">#6</td>
+              <td class="team">Niltm35 & espitijungle</td>
+              <td class="pts">4.75<span class="sub">(19 issues)</span></td>
+              <td class="pts">4.75<span class="sub">(5 issues)</span></td>
+              <td class="total">9.50</td>
+            </tr>
+            <tr>
+              <td class="rank">#7</td>
+              <td class="team">IvonneHernan & nigelboada</td>
+              <td class="pts">1.00<span class="sub">(4 issues)</span></td>
+              <td class="pts">7.50<span class="sub">(4 issues)</span></td>
+              <td class="total">8.50</td>
+            </tr>
+            <tr>
+              <td class="rank">#8</td>
+              <td class="team">Janics22 & ikeerwp</td>
+              <td class="pts">0.25<span class="sub">(1 issues)</span></td>
+              <td class="pts">2.50<span class="sub">(2 issues)</span></td>
+              <td class="total">2.75</td>
+            </tr>
+            <tr>
+              <td class="rank">#9</td>
+              <td class="team">cesar606 & mikaropa11</td>
+              <td class="pts">0.25<span class="sub">(1 issues)</span></td>
+              <td class="pts">2.25<span class="sub">(2 issues)</span></td>
+              <td class="total">2.50</td>
+            </tr>
+            <tr>
+              <td class="rank">#10</td>
+              <td class="team">xji650 & xBlanco998</td>
+              <td class="pts">0.75<span class="sub">(3 issues)</span></td>
+              <td class="pts">0.25<span class="sub">(1 issues)</span></td>
+              <td class="total">1.00</td>
+            </tr>
+      </tbody>
+    </table>
+
+    <div class="rules">
+      <h2>Reglas de puntuación</h2>
+      <ul>
+        <li>Crear una issue (que acabe en Done): <strong>+0.25 pts</strong> al equipo creador</li>
+        <li>Implementar una issue de otro equipo: <strong>+SP completos</strong> al equipo implementador</li>
+        <li>Implementar una issue propia: <strong>+SP/2</strong> al equipo (mitad de los story points)</li>
+        <li>Solo cuentan las issues en estado <strong>Done</strong> (cerradas por PR mergeado)</li>
+      </ul>
+    </div>
+
+    <p class="updated">Ultima actualizacion: 2026-04-15 16:10 UTC</p>
+  </div>
+</body>
+</html>
