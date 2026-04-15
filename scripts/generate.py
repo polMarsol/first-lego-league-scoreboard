@@ -719,26 +719,19 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       background: var(--border);
     }}
 
-    /* ── Shimmer top 3 ───────────────────────────────────────── */
-    @keyframes shimmer-pass {{
-      0%   {{ background-position: -100% center; }}  /* off-screen left  */
-      30%  {{ background-position: 200% center; }}   /* off-screen right */
-      100% {{ background-position: 200% center; }}   /* hold off-screen until reset */
-    }}
+    /* ── Top 3 row tints — static gradient, no animation ───────── */
     .row-top-1 {{
-      background-image: linear-gradient(100deg, transparent 20%, rgba(212,160,23,0.11) 50%, transparent 80%);
-      background-size: 250% 100%;
-      animation: shimmer-pass 4s linear infinite;
+      background: linear-gradient(90deg, rgba(212,160,23,0.14) 0%, rgba(212,160,23,0.04) 60%, transparent 100%);
     }}
     .row-top-2 {{
-      background-image: linear-gradient(100deg, transparent 20%, rgba(160,174,192,0.09) 50%, transparent 80%);
-      background-size: 250% 100%;
-      animation: shimmer-pass 5s linear 1.3s infinite;
+      background: linear-gradient(90deg, rgba(160,174,192,0.10) 0%, rgba(160,174,192,0.03) 60%, transparent 100%);
     }}
     .row-top-3 {{
-      background-image: linear-gradient(100deg, transparent 20%, rgba(184,115,51,0.09) 50%, transparent 80%);
-      background-size: 250% 100%;
-      animation: shimmer-pass 4.5s linear 2.6s infinite;
+      background: linear-gradient(90deg, rgba(184,115,51,0.10) 0%, rgba(184,115,51,0.03) 60%, transparent 100%);
+    }}
+    /* Keep hover subtle so tint stays readable */
+    .row-top-1:hover td, .row-top-2:hover td, .row-top-3:hover td {{
+      background: transparent !important;
     }}
 
     .updated {{
@@ -1518,7 +1511,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         '255,255,255', '200,220,255', '255,240,180', '180,180,255', '220,255,220'
       ];
       var pts = [];
-      for (var i = 0; i < 55; i++) {{
+      for (var i = 0; i < 180; i++) {{
         var big = Math.random() < 0.12; // 12% are slightly bigger "bright stars"
         pts.push({{
           x:    Math.random() * window.innerWidth,
