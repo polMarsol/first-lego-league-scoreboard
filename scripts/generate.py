@@ -218,34 +218,41 @@ def calculate_scores(teams, user_to_team, all_issues, coin_issues):
 
     return scores
 
-# ── Chart Data ──────────────────────────────────────────────────────────────────
+# ── Issues Detail ───────────────────────────────────────────────────────────────
 
-def build_chart_data(teams, user_to_team, all_issues):
-    """Build per-event list for the score evolution chart."""
-    events = []
+def build_issues_detail(teams, user_to_team, all_issues):
+    """Build rich per-issue data used by both the score chart and team detail panel."""
+    details = []
     for issue in all_issues:
-        date = issue.get("closed_at", "")[:10]
-        if not date:
-            continue
-        creator        = issue["creator"]
-        creator_tid    = user_to_team.get(creator.lower()) if creator else None
-        impl_tid       = None
+        creator     = issue["creator"]
+        creator_tid = user_to_team.get(creator.lower()) if creator else None
+        impl_tid    = None
+        implementer = None
         for a in issue["assignees"]:
             t = user_to_team.get(a.lower())
             if t is not None:
-                impl_tid = t
+                impl_tid    = t
+                implementer = a
                 break
         if impl_tid is None:
             continue
         sp    = issue["story_points"]
         score = sp / 2 if impl_tid == creator_tid else sp
-        events.append({
-            "date":  date,
-            "team":  teams[impl_tid]["name"],
-            "score": score,
-            "sp":    sp,
+        date  = issue.get("closed_at", "")[:10]
+        details.append({
+            "number":       issue["number"],
+            "title":        issue["title"],
+            "repo":         issue.get("repo", ""),
+            "sp":           sp,
+            "score":        score,
+            "own":          impl_tid == creator_tid,
+            "creator":      creator or "",
+            "creator_team": teams[creator_tid]["name"] if creator_tid is not None else "",
+            "implementer":  implementer or "",
+            "impl_team":    teams[impl_tid]["name"],
+            "date":         date,
         })
-    return events
+    return details
 
 # ── Position Tracking ────────────────────────────────────────────────────────────
 
@@ -273,7 +280,7 @@ def rank_teams(teams, scores):
 
 # ── HTML ────────────────────────────────────────────────────────────────────────
 
-def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, chart_data):
+def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail):
     rows = ""
     for pos, team_id in enumerate(ranked):
         team     = teams[team_id]
@@ -306,8 +313,9 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         balance_cls = "balance-ok" if balance >= 0 else "balance-debt"
         balance_str = f"+{balance:.2f}" if balance >= 0 else f"{balance:.2f}"
 
+        team_name_js = team["name"].replace("'", "\\'")
         rows += f"""
-            <tr class="{row_cls}">
+            <tr class="{row_cls}" onclick="openTeamDetail('{team_name_js}')" style="cursor:pointer">
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge {rank_cls}">{rank_num}</span>
@@ -334,9 +342,10 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     total_sp      = sum(i["story_points"] for i in all_issues)
     teams_in_debt = sum(1 for i in range(len(teams)) if scores[i]["balance"] < 0)
 
-    team_names_json  = json.dumps([t["name"] for t in teams])
-    team_colors_json = json.dumps(CHART_COLORS[:len(teams)])
-    chart_data_json  = json.dumps(chart_data)
+    team_names_json   = json.dumps([t["name"] for t in teams])
+    team_members_json = json.dumps({t["name"]: t["members"] for t in teams})
+    team_colors_json  = json.dumps(CHART_COLORS[:len(teams)])
+    issues_detail_json = json.dumps(issues_detail)
 
     return f"""<!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -785,6 +794,106 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       position: relative;
     }}
 
+    /* Team detail modal */
+    .member-breakdown {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }}
+    .member-card {{
+      background: var(--surface-hover);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }}
+    .member-card-header {{
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px;
+    }}
+    .member-card-header .avatar {{ width: 32px; height: 32px; }}
+    .member-card-header a {{
+      text-decoration: none; color: var(--text-primary);
+      font-weight: 600; font-size: 0.88rem;
+      transition: color 150ms ease;
+    }}
+    .member-card-header a:hover {{ color: var(--accent); }}
+    .member-stat {{
+      font-size: 0.78rem; color: var(--text-secondary);
+      display: flex; justify-content: space-between;
+      padding: 2px 0;
+    }}
+    .member-stat strong {{ color: var(--text-primary); font-variant-numeric: tabular-nums; }}
+    .detail-tabs {{
+      display: flex; gap: 0;
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+    }}
+    .tab-btn {{
+      padding: 10px 16px;
+      background: transparent; border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-family: 'Barlow', sans-serif;
+      font-size: 0.82rem; font-weight: 600;
+      cursor: pointer;
+      transition: color 150ms ease, border-color 150ms ease;
+      margin-bottom: -1px;
+    }}
+    .tab-btn:hover {{ color: var(--text-primary); }}
+    .tab-btn.active {{ color: var(--accent); border-bottom-color: var(--accent); }}
+    .detail-table-area {{
+      flex: 1; overflow-y: auto;
+      padding: 0 20px 16px;
+    }}
+    .detail-table {{
+      width: 100%; border-collapse: collapse;
+      font-size: 0.82rem; margin-top: 12px;
+    }}
+    .detail-table th {{
+      text-align: left; padding: 6px 10px;
+      font-size: 0.65rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+    }}
+    .detail-table th.tr {{ text-align: right; }}
+    .detail-table td {{
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border-subtle);
+      vertical-align: middle;
+      color: var(--text-secondary);
+    }}
+    .detail-table tr:last-child td {{ border-bottom: none; }}
+    .detail-table a {{ color: var(--text-primary); text-decoration: none; }}
+    .detail-table a:hover {{ color: var(--accent); text-decoration: underline; }}
+    .detail-table .tr {{ text-align: right; font-variant-numeric: tabular-nums; }}
+    .badge-own {{
+      display: inline-block; padding: 1px 7px;
+      border-radius: 10px; font-size: 0.65rem; font-weight: 600;
+      background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+      color: var(--text-muted);
+    }}
+    .badge-cross {{
+      display: inline-block; padding: 1px 7px;
+      border-radius: 10px; font-size: 0.65rem; font-weight: 600;
+      background: color-mix(in srgb, var(--green) 15%, transparent);
+      color: var(--green);
+    }}
+    .implementer-pill {{
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.78rem; color: var(--text-secondary);
+    }}
+    .implementer-pill img {{
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 1px solid var(--border);
+    }}
+    .no-issues {{
+      text-align: center; padding: 32px 0;
+      color: var(--text-muted); font-size: 0.82rem;
+    }}
+
     @media (max-width: 900px) {{
       .stats {{ grid-template-columns: repeat(3, 1fr); }}
     }}
@@ -877,6 +986,24 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
 
     <p class="updated">Last updated: {generated_at}</p>
   </div>
+  <!-- Team detail modal -->
+  <div id="team-modal" class="modal-overlay" onclick="handleTeamOverlayClick(event)">
+    <div class="modal-box" style="max-width:800px">
+      <div class="modal-header">
+        <div id="team-modal-title" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"></div>
+        <button class="modal-close" onclick="closeTeamModal()" aria-label="Close">&times;</button>
+      </div>
+      <div id="member-breakdown" class="member-breakdown"></div>
+      <div class="detail-tabs">
+        <button class="tab-btn active" onclick="switchTab(this,'implemented')">Implemented</button>
+        <button class="tab-btn" onclick="switchTab(this,'created')">Created</button>
+      </div>
+      <div class="detail-table-area">
+        <div id="detail-content"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Chart modal -->
   <div id="chart-modal" class="modal-overlay" onclick="handleOverlayClick(event)">
     <div class="modal-box">
@@ -905,10 +1032,13 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
   </div>
 
   <script>
-    // ── Chart data injected by Python ─────────────────────────────────────────
-    const RAW    = {chart_data_json};
-    const TEAMS  = {team_names_json};
-    const COLORS = {team_colors_json};
+    // ── Data injected by Python ───────────────────────────────────────────────
+    const ISSUES  = {issues_detail_json};
+    const TEAMS   = {team_names_json};
+    const MEMBERS = {team_members_json};
+    const COLORS  = {team_colors_json};
+    // Derive flat chart events from rich issue data
+    const RAW = ISSUES.map(e => ({{ date: e.date, team: e.impl_team, score: e.score, sp: e.sp }}));
 
     // ── State ─────────────────────────────────────────────────────────────────
     let chart       = null;
@@ -1062,6 +1192,165 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       buildChart();
     }}
 
+    // ── Team detail modal ─────────────────────────────────────────────────────
+    let currentTeam = null;
+    let currentTab  = 'implemented';
+
+    function openTeamDetail(teamName) {{
+      currentTeam = teamName;
+      currentTab  = 'implemented';
+      document.querySelectorAll('#team-modal .tab-btn').forEach((b, i) => {{
+        b.classList.toggle('active', i === 0);
+      }});
+      renderTeamModal();
+      document.getElementById('team-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }}
+
+    function closeTeamModal() {{
+      document.getElementById('team-modal').classList.remove('open');
+      document.body.style.overflow = '';
+    }}
+
+    function handleTeamOverlayClick(e) {{
+      if (e.target === document.getElementById('team-modal')) closeTeamModal();
+    }}
+
+    function switchTab(btn, tab) {{
+      currentTab = tab;
+      document.querySelectorAll('#team-modal .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderDetailTable();
+    }}
+
+    function renderTeamModal() {{
+      const members = MEMBERS[currentTeam] || [];
+      const teamIdx = TEAMS.indexOf(currentTeam);
+      const color   = COLORS[teamIdx % COLORS.length];
+
+      // Header: avatars + names
+      const titleEl = document.getElementById('team-modal-title');
+      titleEl.innerHTML = members.map(m =>
+        `<a href="https://github.com/${{m}}" target="_blank" style="display:flex;align-items:center;gap:6px;text-decoration:none;color:inherit">
+          <img src="https://github.com/${{m}}.png?size=56" width="28" height="28"
+               style="border-radius:50%;border:2px solid ${{color}}">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1rem;letter-spacing:.04em">${{m}}</span>
+        </a>`
+      ).join('<span style="color:var(--text-muted);font-size:0.8rem">&</span>');
+
+      // Per-member breakdown
+      const implIssues = ISSUES.filter(e => e.impl_team === currentTeam);
+      const creaIssues = ISSUES.filter(e => e.creator_team === currentTeam);
+      const breakdown  = document.getElementById('member-breakdown');
+      breakdown.innerHTML = members.map(m => {{
+        const mImpl  = implIssues.filter(e => e.implementer === m);
+        const mCrea  = creaIssues.filter(e => e.creator === m);
+        const mScore = mImpl.reduce((s, e) => s + e.score, 0);
+        const mSP    = mImpl.reduce((s, e) => s + e.sp, 0);
+        return `<div class="member-card">
+          <div class="member-card-header">
+            <img src="https://github.com/${{m}}.png?size=56" alt="${{m}}" class="avatar"
+                 style="border-color:${{color}}">
+            <a href="https://github.com/${{m}}" target="_blank">${{m}}</a>
+          </div>
+          <div class="member-stat">
+            <span>Implemented</span>
+            <strong>${{mImpl.length}} issues &middot; ${{mScore.toFixed(2)}} pts</strong>
+          </div>
+          <div class="member-stat">
+            <span>SP done</span>
+            <strong>${{mSP.toFixed(2)}} SP</strong>
+          </div>
+          <div class="member-stat">
+            <span>Created (done)</span>
+            <strong>${{mCrea.length}} issues</strong>
+          </div>
+        </div>`;
+      }}).join('');
+
+      renderDetailTable();
+    }}
+
+    function fmtDate(d) {{
+      if (!d) return '—';
+      const dt = new Date(d + 'T12:00:00Z');
+      return dt.toLocaleString('en', {{ month: 'short', day: 'numeric', year: '2-digit' }});
+    }}
+
+    function renderDetailTable() {{
+      const el = document.getElementById('detail-content');
+      if (currentTab === 'implemented') {{
+        const rows = ISSUES.filter(e => e.impl_team === currentTeam)
+          .sort((a, b) => b.date.localeCompare(a.date));
+        if (!rows.length) {{
+          el.innerHTML = '<p class="no-issues">No implemented issues yet.</p>';
+          return;
+        }}
+        el.innerHTML = `<table class="detail-table">
+          <thead><tr>
+            <th>#</th><th>Title</th><th>Repo</th>
+            <th class="tr">SP</th><th class="tr">Earned</th>
+            <th>By</th><th>Type</th><th>Date</th>
+          </tr></thead>
+          <tbody>${{rows.map(e => `
+            <tr>
+              <td style="color:var(--text-muted)">#${{e.number}}</td>
+              <td><a href="https://github.com/${{e.repo ? 'UdL-EPS-SoftArch-Igualada/' + e.repo + '/issues/' + e.number : '#'}}" target="_blank">${{e.title}}</a></td>
+              <td style="color:var(--text-muted)">${{e.repo || '—'}}</td>
+              <td class="tr">${{e.sp.toFixed(2)}}</td>
+              <td class="tr" style="color:var(--green);font-weight:700">+${{e.score.toFixed(2)}}</td>
+              <td>
+                <span class="implementer-pill">
+                  <img src="https://github.com/${{e.implementer}}.png?size=40" alt="${{e.implementer}}">
+                  ${{e.implementer}}
+                </span>
+              </td>
+              <td>${{e.own
+                ? '<span class="badge-own">own</span>'
+                : '<span class="badge-cross">cross</span>'}}</td>
+              <td style="color:var(--text-muted);white-space:nowrap">${{fmtDate(e.date)}}</td>
+            </tr>`).join('')}}
+          </tbody>
+        </table>`;
+      }} else {{
+        const rows = ISSUES.filter(e => e.creator_team === currentTeam)
+          .sort((a, b) => b.date.localeCompare(a.date));
+        if (!rows.length) {{
+          el.innerHTML = '<p class="no-issues">No created issues in Done yet.</p>';
+          return;
+        }}
+        el.innerHTML = `<table class="detail-table">
+          <thead><tr>
+            <th>#</th><th>Title</th><th>Repo</th>
+            <th class="tr">SP</th><th>Creator</th>
+            <th>Implemented by</th><th>Date</th>
+          </tr></thead>
+          <tbody>${{rows.map(e => `
+            <tr>
+              <td style="color:var(--text-muted)">#${{e.number}}</td>
+              <td><a href="https://github.com/${{e.repo ? 'UdL-EPS-SoftArch-Igualada/' + e.repo + '/issues/' + e.number : '#'}}" target="_blank">${{e.title}}</a></td>
+              <td style="color:var(--text-muted)">${{e.repo || '—'}}</td>
+              <td class="tr">${{e.sp.toFixed(2)}}</td>
+              <td>
+                <span class="implementer-pill">
+                  <img src="https://github.com/${{e.creator}}.png?size=40" alt="${{e.creator}}">
+                  ${{e.creator}}
+                </span>
+              </td>
+              <td>
+                <span class="implementer-pill">
+                  <img src="https://github.com/${{e.implementer}}.png?size=40" alt="${{e.implementer}}">
+                  ${{e.implementer}}
+                  <span style="color:var(--text-muted);font-size:0.72rem">(${{e.impl_team}})</span>
+                </span>
+              </td>
+              <td style="color:var(--text-muted);white-space:nowrap">${{fmtDate(e.date)}}</td>
+            </tr>`).join('')}}
+          </tbody>
+        </table>`;
+      }}
+    }}
+
     // ── Modal ─────────────────────────────────────────────────────────────────
     function openChart() {{
       document.getElementById('chart-modal').classList.add('open');
@@ -1079,7 +1368,9 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       if (e.target === document.getElementById('chart-modal')) closeChart();
     }}
 
-    document.addEventListener('keydown', e => {{ if (e.key === 'Escape') closeChart(); }});
+    document.addEventListener('keydown', e => {{
+      if (e.key === 'Escape') {{ closeChart(); closeTeamModal(); }}
+    }});
   </script>
 
   <script>
@@ -1130,9 +1421,9 @@ def main():
     current_positions = {teams[team_id]["name"]: pos + 1 for pos, team_id in enumerate(ranked)}
     save_positions(current_positions, out_dir)
 
-    chart_data   = build_chart_data(teams, user_to_team, all_issues)
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    html = generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, chart_data)
+    issues_detail = build_issues_detail(teams, user_to_team, all_issues)
+    generated_at  = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    html = generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail)
 
     out_path = os.path.join(out_dir, "index.html")
     with open(out_path, "w", encoding="utf-8") as f:
