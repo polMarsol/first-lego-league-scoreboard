@@ -36,6 +36,12 @@ STORY_POINTS_MAP = {
 
 COIN_LABEL = "\U0001fa99"  # 🪙 — professor's budget label
 
+CHART_COLORS = [
+    "#2F81F7", "#3FB950", "#D4A017", "#F78166",
+    "#A371F7", "#FFA657", "#79C0FF", "#FF7B72",
+    "#56D364", "#E5C07B", "#58A6FF", "#F0883E",
+]
+
 # ── Teams ───────────────────────────────────────────────────────────────────────
 
 def fetch_teams():
@@ -98,6 +104,7 @@ query($org: String!, $projectNumber: Int!, $cursor: String) {
               assignees(first: 10) { nodes { login } }
               labels(first: 15) { nodes { name } }
               repository { name }
+              closedAt
             }
           }
         }
@@ -150,6 +157,7 @@ def fetch_project_issues():
                 "creator":      (content.get("author") or {}).get("login"),
                 "assignees":    [a["login"] for a in content.get("assignees", {}).get("nodes", [])],
                 "story_points": sp,
+                "closed_at":    content.get("closedAt", "") or "",
             }
 
             status = (item.get("status") or {}).get("name", "")
@@ -210,6 +218,35 @@ def calculate_scores(teams, user_to_team, all_issues, coin_issues):
 
     return scores
 
+# ── Chart Data ──────────────────────────────────────────────────────────────────
+
+def build_chart_data(teams, user_to_team, all_issues):
+    """Build per-event list for the score evolution chart."""
+    events = []
+    for issue in all_issues:
+        date = issue.get("closed_at", "")[:10]
+        if not date:
+            continue
+        creator        = issue["creator"]
+        creator_tid    = user_to_team.get(creator.lower()) if creator else None
+        impl_tid       = None
+        for a in issue["assignees"]:
+            t = user_to_team.get(a.lower())
+            if t is not None:
+                impl_tid = t
+                break
+        if impl_tid is None:
+            continue
+        sp    = issue["story_points"]
+        score = sp / 2 if impl_tid == creator_tid else sp
+        events.append({
+            "date":  date,
+            "team":  teams[impl_tid]["name"],
+            "score": score,
+            "sp":    sp,
+        })
+    return events
+
 # ── Position Tracking ────────────────────────────────────────────────────────────
 
 def load_previous_positions(out_dir):
@@ -236,7 +273,7 @@ def rank_teams(teams, scores):
 
 # ── HTML ────────────────────────────────────────────────────────────────────────
 
-def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions):
+def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, chart_data):
     rows = ""
     for pos, team_id in enumerate(ranked):
         team     = teams[team_id]
@@ -297,6 +334,10 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     total_sp      = sum(i["story_points"] for i in all_issues)
     teams_in_debt = sum(1 for i in range(len(teams)) if scores[i]["balance"] < 0)
 
+    team_names_json  = json.dumps([t["name"] for t in teams])
+    team_colors_json = json.dumps(CHART_COLORS[:len(teams)])
+    chart_data_json  = json.dumps(chart_data)
+
     return f"""<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
@@ -306,6 +347,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
@@ -642,6 +684,107 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       margin-top: 12px;
     }}
 
+    /* Chart button */
+    .chart-btn {{
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-family: 'Barlow', sans-serif;
+      font-size: 0.78rem; font-weight: 500;
+      cursor: pointer;
+      transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+      white-space: nowrap;
+    }}
+    .chart-btn:hover {{ border-color: var(--accent); color: var(--accent); background: var(--surface-hover); }}
+    .chart-btn svg {{ width: 14px; height: 14px; flex-shrink: 0; }}
+
+    /* Modal overlay */
+    .modal-overlay {{
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 200;
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }}
+    .modal-overlay.open {{ display: flex; }}
+    .modal-box {{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%; max-width: 880px;
+      max-height: 90vh;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }}
+    .modal-header {{
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }}
+    .modal-title {{
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--text-primary);
+    }}
+    .modal-close {{
+      background: transparent; border: none;
+      color: var(--text-muted); cursor: pointer;
+      font-size: 1.2rem; line-height: 1;
+      padding: 4px 8px; border-radius: 4px;
+      transition: color 150ms ease, background 150ms ease;
+    }}
+    .modal-close:hover {{ color: var(--text-primary); background: var(--surface-hover); }}
+    .modal-controls {{
+      display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }}
+    .ctrl-label {{
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }}
+    .ctrl-group {{ display: flex; gap: 4px; }}
+    .ctrl-btn {{
+      padding: 4px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: 'Barlow', sans-serif;
+      font-size: 0.78rem; cursor: pointer;
+      transition: all 150ms ease;
+    }}
+    .ctrl-btn:hover {{ border-color: var(--accent); color: var(--accent); }}
+    .ctrl-btn.active {{ background: var(--accent); border-color: var(--accent); color: #fff; }}
+    .team-toggles {{
+      display: flex; gap: 8px; flex-wrap: wrap;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }}
+    .team-pill {{
+      padding: 3px 12px;
+      border-radius: 20px;
+      border: 2px solid transparent;
+      font-family: 'Barlow', sans-serif;
+      font-size: 0.75rem; font-weight: 600;
+      cursor: pointer;
+      transition: opacity 150ms ease, filter 150ms ease;
+    }}
+    .team-pill.off {{ opacity: 0.3; filter: grayscale(0.6); }}
+    .chart-area {{
+      padding: 16px 20px;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 280px;
+      position: relative;
+    }}
+
     @media (max-width: 900px) {{
       .stats {{ grid-template-columns: repeat(3, 1fr); }}
     }}
@@ -650,6 +793,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       header {{ padding: 12px 16px; }}
       .header-left {{ flex-direction: column; gap: 2px; }}
       .container {{ padding: 0 12px; margin: 20px auto; }}
+      .modal-controls {{ gap: 10px; }}
     }}
   </style>
 </head>
@@ -660,6 +804,12 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         <h1>FLL Scoreboard</h1>
         <span class="org">UdL EPS SoftArch Igualada</span>
       </div>
+      <button class="chart-btn" onclick="openChart()" aria-label="Score evolution chart">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Chart
+      </button>
       <button class="theme-btn" onclick="toggleTheme()" aria-label="Toggle theme">
         <!-- Sun icon (shown in light mode) -->
         <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -727,6 +877,211 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
 
     <p class="updated">Last updated: {generated_at}</p>
   </div>
+  <!-- Chart modal -->
+  <div id="chart-modal" class="modal-overlay" onclick="handleOverlayClick(event)">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">Score Evolution</span>
+        <button class="modal-close" onclick="closeChart()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-controls">
+        <span class="ctrl-label">Metric</span>
+        <div class="ctrl-group" id="metric-group">
+          <button class="ctrl-btn active" data-metric="score" onclick="setMetric(this)">Total Score</button>
+          <button class="ctrl-btn" data-metric="sp" onclick="setMetric(this)">Story Points</button>
+        </div>
+        <span class="ctrl-label" style="margin-left:8px">Period</span>
+        <div class="ctrl-group" id="gran-group">
+          <button class="ctrl-btn" data-gran="day" onclick="setGran(this)">Day</button>
+          <button class="ctrl-btn active" data-gran="week" onclick="setGran(this)">Week</button>
+          <button class="ctrl-btn" data-gran="month" onclick="setGran(this)">Month</button>
+        </div>
+      </div>
+      <div class="team-toggles" id="team-toggles"></div>
+      <div class="chart-area">
+        <canvas id="scoreChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Chart data injected by Python ─────────────────────────────────────────
+    const RAW    = {chart_data_json};
+    const TEAMS  = {team_names_json};
+    const COLORS = {team_colors_json};
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let chart       = null;
+    let activeMetric = 'score';
+    let activeGran   = 'week';
+    const activeTeams = new Set(TEAMS);
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function periodKey(dateStr, gran) {{
+      const d = new Date(dateStr + 'T12:00:00Z');
+      if (gran === 'day')   return dateStr;
+      if (gran === 'month') return dateStr.slice(0, 7);
+      // week: Monday of that week
+      const day  = d.getUTCDay() || 7;
+      const mon  = new Date(d);
+      mon.setUTCDate(d.getUTCDate() - day + 1);
+      return mon.toISOString().slice(0, 10);
+    }}
+
+    function fmtLabel(key, gran) {{
+      if (gran === 'month') {{
+        const [y, m] = key.split('-');
+        return new Date(y, m - 1, 1).toLocaleString('en', {{ month: 'short', year: '2-digit' }});
+      }}
+      if (gran === 'week') {{
+        const d   = new Date(key + 'T12:00:00Z');
+        const jan4 = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+        const wk1Mon = new Date(jan4);
+        wk1Mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() || 7) - 1));
+        const wn = Math.round((d - wk1Mon) / 604800000) + 1;
+        return 'W' + wn + " '" + String(d.getUTCFullYear()).slice(2);
+      }}
+      return key.slice(5); // MM-DD
+    }}
+
+    function themeColors() {{
+      const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+      return {{
+        grid:    dark ? '#30363D' : '#E1E4E8',
+        tick:    dark ? '#6E7681' : '#9198A1',
+        tooltip: dark ? '#161B22' : '#FFFFFF',
+        border:  dark ? '#30363D' : '#D0D7DE',
+      }};
+    }}
+
+    // ── Build & render ────────────────────────────────────────────────────────
+    function buildChart() {{
+      const keySet = new Set(RAW.map(e => periodKey(e.date, activeGran)));
+      const keys   = Array.from(keySet).sort();
+      const labels = keys.map(k => fmtLabel(k, activeGran));
+
+      const datasets = TEAMS.map((team, idx) => {{
+        if (!activeTeams.has(team)) return null;
+        let cum = 0;
+        const data = keys.map(k => {{
+          RAW.filter(e => e.team === team && periodKey(e.date, activeGran) === k)
+             .forEach(e => {{ cum += activeMetric === 'score' ? e.score : e.sp; }});
+          return parseFloat(cum.toFixed(2));
+        }});
+        const color = COLORS[idx % COLORS.length];
+        return {{
+          label: team, data,
+          borderColor: color,
+          backgroundColor: color + '18',
+          fill: false,
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          borderWidth: 2.5,
+        }};
+      }}).filter(Boolean);
+
+      const tc = themeColors();
+      const yLabel = activeMetric === 'score' ? 'Cumulative Score' : 'Cumulative Story Points';
+
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById('scoreChart').getContext('2d'), {{
+        type: 'line',
+        data: {{ labels, datasets }},
+        options: {{
+          responsive: true,
+          maintainAspectRatio: true,
+          interaction: {{ mode: 'index', intersect: false }},
+          plugins: {{
+            legend: {{ display: false }},
+            tooltip: {{
+              backgroundColor: tc.tooltip,
+              borderColor: tc.border,
+              borderWidth: 1,
+              titleColor: tc.tick,
+              bodyColor: '#E6EDF3',
+              padding: 10,
+              callbacks: {{
+                title: items => fmtLabel(keys[items[0].dataIndex], activeGran),
+              }},
+            }},
+          }},
+          scales: {{
+            x: {{
+              grid: {{ color: tc.grid }},
+              ticks: {{ color: tc.tick, font: {{ family: 'Barlow', size: 11 }} }},
+            }},
+            y: {{
+              beginAtZero: true,
+              grid: {{ color: tc.grid }},
+              ticks: {{ color: tc.tick, font: {{ family: 'Barlow', size: 11 }} }},
+              title: {{ display: true, text: yLabel, color: tc.tick, font: {{ family: 'Barlow', size: 11 }} }},
+            }},
+          }},
+        }},
+      }});
+    }}
+
+    function buildTeamToggles() {{
+      const container = document.getElementById('team-toggles');
+      container.innerHTML = '';
+      TEAMS.forEach((team, idx) => {{
+        const btn = document.createElement('button');
+        btn.className = 'team-pill';
+        btn.textContent = team;
+        btn.style.borderColor = COLORS[idx % COLORS.length];
+        btn.style.color = COLORS[idx % COLORS.length];
+        btn.dataset.team = team;
+        btn.onclick = () => toggleTeam(team, btn);
+        container.appendChild(btn);
+      }});
+    }}
+
+    function toggleTeam(team, btn) {{
+      if (activeTeams.has(team)) {{
+        activeTeams.delete(team);
+        btn.classList.add('off');
+      }} else {{
+        activeTeams.add(team);
+        btn.classList.remove('off');
+      }}
+      buildChart();
+    }}
+
+    function setMetric(btn) {{
+      activeMetric = btn.dataset.metric;
+      document.querySelectorAll('#metric-group .ctrl-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      buildChart();
+    }}
+
+    function setGran(btn) {{
+      activeGran = btn.dataset.gran;
+      document.querySelectorAll('#gran-group .ctrl-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      buildChart();
+    }}
+
+    // ── Modal ─────────────────────────────────────────────────────────────────
+    function openChart() {{
+      document.getElementById('chart-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      buildTeamToggles();
+      buildChart();
+    }}
+
+    function closeChart() {{
+      document.getElementById('chart-modal').classList.remove('open');
+      document.body.style.overflow = '';
+    }}
+
+    function handleOverlayClick(e) {{
+      if (e.target === document.getElementById('chart-modal')) closeChart();
+    }}
+
+    document.addEventListener('keydown', e => {{ if (e.key === 'Escape') closeChart(); }});
+  </script>
+
   <script>
     (function () {{
       var saved = localStorage.getItem('fll-theme');
@@ -775,8 +1130,9 @@ def main():
     current_positions = {teams[team_id]["name"]: pos + 1 for pos, team_id in enumerate(ranked)}
     save_positions(current_positions, out_dir)
 
+    chart_data   = build_chart_data(teams, user_to_team, all_issues)
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    html = generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions)
+    html = generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, chart_data)
 
     out_path = os.path.join(out_dir, "index.html")
     with open(out_path, "w", encoding="utf-8") as f:
