@@ -343,6 +343,29 @@
       font-size: 0.7rem;
       margin-top: 12px;
     }
+    .live-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; flex-wrap: wrap;
+    }
+    .live-indicator {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.7rem; color: var(--text-muted);
+    }
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+      animation: livepulse 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes livepulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.3; transform: scale(0.8); }
+    }
+    #countdown {
+      font-variant-numeric: tabular-nums;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
 
     /* Chart button */
     .chart-btn {
@@ -855,7 +878,13 @@
       </ul>
     </div>
 
-    <p class="updated">Last updated: 2026-04-15 21:46 UTC</p>
+    <div class="live-row">
+      <span class="updated">Last updated: 2026-04-15 21:53 UTC</span>
+      <span class="live-indicator">
+        <span class="live-dot"></span>
+        Next update in <span id="countdown">--:--</span>
+      </span>
+    </div>
   </div>
   <!-- Team detail modal -->
   <div id="team-modal" class="modal-overlay" onclick="handleTeamOverlayClick(event)">
@@ -1246,6 +1275,7 @@
 
   <script>
     (function () {
+      // Theme toggle
       var saved = localStorage.getItem('fll-theme');
       if (saved) document.documentElement.setAttribute('data-theme', saved);
       var btn = document.querySelector('.btn-label');
@@ -1261,6 +1291,20 @@
         localStorage.setItem('fll-theme', next);
         updateLabel();
       };
+
+      // Countdown to next hourly workflow run (cron: '0 * * * *')
+      var cdEl = document.getElementById('countdown');
+      function tick() {
+        var now  = new Date();
+        var next = new Date(now);
+        next.setHours(next.getHours() + 1, 0, 0, 0);
+        var diff = next - now;
+        var m = Math.floor(diff / 60000);
+        var s = Math.floor((diff % 60000) / 1000);
+        cdEl.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+      }
+      tick();
+      setInterval(tick, 1000);
     })();
   </script>
 </body>
