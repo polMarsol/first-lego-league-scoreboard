@@ -16,7 +16,8 @@ from datetime import datetime, timezone
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 ORG = "UdL-EPS-SoftArch-Igualada"
-REPOS = ["first-lego-league-backend", "first-lego-league-frontend"]
+PROJECT_NUMBER = 8          # https://github.com/orgs/UdL-EPS-SoftArch-Igualada/projects/8
+TEAMS_REPO = "first-lego-league-backend"
 TEAMS_FILE_PATH = ".github/teams.txt"
 TOKEN = os.environ.get("GH_TOKEN", "")
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
@@ -36,7 +37,7 @@ STORY_POINTS_MAP = {
 
 def fetch_teams():
     """Read teams.txt from the repo and build lookup structures."""
-    url = f"https://raw.githubusercontent.com/{ORG}/{REPOS[0]}/main/{TEAMS_FILE_PATH}"
+    url = f"https://raw.githubusercontent.com/{ORG}/{TEAMS_REPO}/main/{TEAMS_FILE_PATH}"
     resp = requests.get(url, headers={"Authorization": f"Bearer {TOKEN}"}, timeout=15)
     resp.raise_for_status()
 
@@ -74,26 +75,26 @@ def graphql(query, variables=None):
         print("GraphQL errors:", payload["errors"], file=sys.stderr)
     return payload.get("data", {})
 
-# ── Issues ──────────────────────────────────────────────────────────────────────
+# ── Issues from Project ─────────────────────────────────────────────────────────
 
-ISSUES_QUERY = """
-query($owner: String!, $repo: String!, $cursor: String) {
-  repository(owner: $owner, name: $repo) {
-    issues(states: CLOSED, first: 100, after: $cursor) {
-      pageInfo { hasNextPage endCursor }
-      nodes {
-        number
-        title
-        author { login }
-        assignees(first: 10) { nodes { login } }
-        labels(first: 15) { nodes { name } }
-        timelineItems(last: 1, itemTypes: CLOSED_EVENT) {
-          nodes {
-            ... on ClosedEvent {
-              closer {
-                __typename
-                ... on PullRequest { merged }
-              }
+PROJECT_QUERY = """
+query($org: String!, $projectNumber: Int!, $cursor: String) {
+  organization(login: $org) {
+    projectV2(number: $projectNumber) {
+      items(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          status: fieldValueByName(name: "Status") {
+            ... on ProjectV2ItemFieldSingleSelectValue { name }
+          }
+          content {
+            ... on Issue {
+              number
+              title
+              author { login }
+              assignees(first: 10) { nodes { login } }
+              labels(first: 15) { nodes { name } }
+              repository { name }
             }
           }
         }
@@ -103,33 +104,48 @@ query($owner: String!, $repo: String!, $cursor: String) {
 }
 """
 
-def fetch_done_issues(repo):
-    """Return all issues in 'Done' (closed by a merged PR) that have story points."""
+def fetch_done_issues():
+    """Fetch all project items with Status='Done' that have story points."""
     done = []
     cursor = None
 
     while True:
-        data = graphql(ISSUES_QUERY, {"owner": ORG, "repo": repo, "cursor": cursor})
-        issues_data = data.get("repository", {}).get("issues", {})
-        nodes = issues_data.get("nodes", [])
-        page_info = issues_data.get("pageInfo", {})
+        data = graphql(PROJECT_QUERY, {"org": ORG, "projectNumber": PROJECT_NUMBER, "cursor": cursor})
+        project = (data.get("organization") or {}).get("projectV2")
+        if not project:
+            print(
+                "ERROR: Cannot access project. Make sure GH_TOKEN has 'project' scope.\n"
+                "  Go to https://github.com/settings/tokens and regenerate with scope: project",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
-        for issue in nodes:
-            # Extract story points from labels
-            labels = [l["name"] for l in issue.get("labels", {}).get("nodes", [])]
+        items_data = project.get("items", {})
+        nodes = items_data.get("nodes", [])
+        page_info = items_data.get("pageInfo", {})
+
+        for item in nodes:
+            # Only items with Status == "Done"
+            status = (item.get("status") or {}).get("name", "")
+            if "done" not in status.lower():
+                continue
+
+            content = item.get("content") or {}
+            if not content.get("number"):
+                continue  # Skip non-issue items (e.g. draft notes)
+
+            # Story points from labels
+            labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
             sp = next((STORY_POINTS_MAP[lb] for lb in labels if lb in STORY_POINTS_MAP), None)
             if sp is None:
                 continue  # No valid story-points label → skip
 
-            creator = (issue.get("author") or {}).get("login")
-            assignees = [a["login"] for a in issue.get("assignees", {}).get("nodes", [])]
-
             done.append({
-                "number":       issue["number"],
-                "title":        issue["title"],
-                "repo":         repo,
-                "creator":      creator,
-                "assignees":    assignees,
+                "number":       content["number"],
+                "title":        content["title"],
+                "repo":         (content.get("repository") or {}).get("name", ""),
+                "creator":      (content.get("author") or {}).get("login"),
+                "assignees":    [a["login"] for a in content.get("assignees", {}).get("nodes", [])],
                 "story_points": sp,
             })
 
@@ -329,14 +345,9 @@ def main():
     teams, user_to_team = fetch_teams()
     print(f"  {len(teams)} teams loaded")
 
-    all_issues = []
-    for repo in REPOS:
-        print(f"Fetching Done issues from {repo}...")
-        issues = fetch_done_issues(repo)
-        print(f"  {len(issues)} Done issues found")
-        all_issues.extend(issues)
-
-    print(f"Total Done issues: {len(all_issues)}")
+    print("Fetching Done issues from project...")
+    all_issues = fetch_done_issues()
+    print(f"  {len(all_issues)} Done issues found")
 
     scores = calculate_scores(teams, user_to_team, all_issues)
 
