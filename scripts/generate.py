@@ -10,11 +10,12 @@ Scoring rules:
 """
 
 import json
+import math
 import os
 import re
 import sys
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 ORG = "UdL-EPS-SoftArch-Igualada"
@@ -405,6 +406,19 @@ def fetch_bet_issues():
             bet_data["_issue_url"]    = issue["html_url"]
             # Always use the GitHub issue author — never trust the JSON field
             bet_data["_author"]       = issue["user"]["login"]
+            # Check if the author posted a "cancel" comment
+            bet_data["_cancel_by"]    = None
+            if issue.get("comments", 0) > 0:
+                try:
+                    c_resp = requests.get(issue["comments_url"], headers=HEADERS, timeout=10)
+                    if c_resp.ok:
+                        for c in c_resp.json():
+                            if (c.get("body", "").strip().lower() == "cancel"
+                                    and c["user"]["login"] == issue["user"]["login"]):
+                                bet_data["_cancel_by"] = c["user"]["login"]
+                                break
+                except Exception:
+                    pass
             bets.append(bet_data)
         if len(items) < 100:
             break
@@ -412,19 +426,24 @@ def fetch_bet_issues():
     return bets
 
 
+def _sigmoid(x):
+    """Standard logistic function, clamped to avoid overflow."""
+    return 1.0 / (1.0 + math.exp(-max(-500, min(500, x))))
+
+
 def _calc_odds_server(bet_type, params, teams, scores, ranked):
-    """Recalculate odds server-side (mirrors JS calcOdds). Returns float."""
+    """Recalculate odds server-side using sigmoid curves (mirrors JS calcOdds)."""
     HOUSE_EDGE = 0.10
+    K_SCORE    = 5.0   # sigmoid steepness for score-based bets
+    K_RANK     = 4.0   # sigmoid steepness for rank bets
     p = 0.5
 
     name_to_id = {t["name"]: t["id"] for t in teams}
-
-    def total(tid):
-        return scores[tid]["creation"] + scores[tid]["implementation"]
+    n_teams    = max(len(teams), 1)
 
     def metric(tid, key):
         if key == "total":
-            return total(tid)
+            return scores[tid]["creation"] + scores[tid]["implementation"]
         return scores[tid].get(key, 0)
 
     if bet_type == "over_under":
@@ -434,26 +453,18 @@ def _calc_odds_server(bet_type, params, teams, scores, ranked):
         current   = metric(tid, params.get("metric", "total"))
         threshold = float(params.get("threshold") or 1)
         ratio     = current / threshold if threshold > 0 else 1.0
-        if   ratio >= 1.3: p_over = 0.88
-        elif ratio >= 1.1: p_over = 0.75
-        elif ratio >= 0.9: p_over = 0.55
-        elif ratio >= 0.7: p_over = 0.35
-        elif ratio >= 0.5: p_over = 0.20
-        else:              p_over = 0.10
+        p_over    = _sigmoid(K_SCORE * (ratio - 1))
         p = p_over if params.get("direction") == "over" else (1 - p_over)
 
     elif bet_type == "rank":
         tid = name_to_id.get(params.get("subject_team"))
         if tid is None:
             return 2.0
-        cur  = (ranked.index(tid) + 1) if tid in ranked else len(ranked) + 1
-        tgt  = int(params.get("target_rank") or 1)
-        gap  = (cur - tgt) if params.get("direction") == "at_or_better" else (tgt - cur)
-        if   gap <= 0:  p = 0.80
-        elif gap == 1:  p = 0.45
-        elif gap == 2:  p = 0.25
-        elif gap == 3:  p = 0.15
-        else:           p = 0.08
+        cur = (ranked.index(tid) + 1) if tid in ranked else n_teams + 1
+        tgt = int(params.get("target_rank") or 1)
+        # positive gap = needs to improve, negative = already ahead of target
+        gap = (cur - tgt) if params.get("direction") == "at_or_better" else (tgt - cur)
+        p   = _sigmoid(-K_RANK * gap / n_teams)
 
     elif bet_type == "milestone":
         tid = name_to_id.get(params.get("subject_team"))
@@ -462,26 +473,79 @@ def _calc_odds_server(bet_type, params, teams, scores, ranked):
         current = scores[tid].get(params.get("metric", "issues_created"), 0)
         target  = int(params.get("target") or 1)
         ratio   = current / target if target > 0 else 1.0
-        if   ratio >= 1.0: p = 0.90
-        elif ratio >= 0.8: p = 0.65
-        elif ratio >= 0.6: p = 0.45
-        elif ratio >= 0.4: p = 0.25
-        else:              p = 0.12
+        p       = _sigmoid(K_SCORE * (ratio - 1))
 
     elif bet_type == "head_to_head":
         id_a = name_to_id.get(params.get("team_a"))
         id_b = name_to_id.get(params.get("team_b"))
         if id_a is None or id_b is None:
             return 2.0
-        sc_a  = metric(id_a, params.get("metric", "total"))
-        sc_b  = metric(id_b, params.get("metric", "total"))
+        sc_a   = metric(id_a, params.get("metric", "total"))
+        sc_b   = metric(id_b, params.get("metric", "total"))
         total_ = sc_a + sc_b
-        p_a   = (sc_a / total_) if total_ > 0 else 0.5
-        p     = p_a if params.get("pick") == "team_a" else (1 - p_a)
+        p_a    = (sc_a / total_) if total_ > 0 else 0.5
+        p      = p_a if params.get("pick") == "team_a" else (1 - p_a)
 
     p   = max(0.05, min(0.95, p))
     raw = (1 / p) * (1 - HOUSE_EDGE)
     return round(max(1.05, min(9.0, raw)), 2)
+
+
+def _close_bet_issue_cancelled(issue_number, stake):
+    """Post a cancellation comment and close the bet issue (best-effort)."""
+    base = f"https://api.github.com/repos/{SCOREBOARD_OWNER}/{SCOREBOARD_REPO}/issues/{issue_number}"
+    body = f"\u21a9\ufe0f **Cancelled** \u2014 Stake refunded: **+{stake:.2f} BRK**"
+    try:
+        requests.post(base + "/comments", headers=HEADERS, json={"body": body}, timeout=10)
+        requests.patch(base, headers=HEADERS, json={"state": "closed"}, timeout=10)
+    except Exception as exc:
+        print(f"  Warning: could not close cancelled bet #{issue_number}: {exc}")
+
+
+def process_cancellations(bets_data, bet_issues):
+    """Refund and close bets where the owner posted 'cancel' with >1h before deadline."""
+    cancel_map = {
+        b["_issue_number"]: b["_cancel_by"]
+        for b in bet_issues if b.get("_cancel_by")
+    }
+    now = datetime.now(timezone.utc)
+    still_active = []
+
+    for bet in bets_data["active_bets"]:
+        cancel_by = cancel_map.get(bet["issue_number"])
+        if not cancel_by or cancel_by.lower() != bet["placed_by"].lower():
+            still_active.append(bet)
+            continue
+
+        try:
+            deadline_date = datetime.strptime(bet["deadline"], "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            still_active.append(bet)
+            continue
+
+        # Close time = midnight UTC at end of deadline day; cancel window closes 1 h before
+        close_time = datetime(deadline_date.year, deadline_date.month, deadline_date.day,
+                              tzinfo=timezone.utc) + timedelta(days=1)
+        if now >= close_time - timedelta(hours=1):
+            print(f"  Bet #{bet['issue_number']}: cancel request too close to deadline, ignored")
+            still_active.append(bet)
+            continue
+
+        # Refund stake
+        old_bal = bets_data["member_balances"].get(bet["placed_by"], 0)
+        bets_data["member_balances"][bet["placed_by"]] = round(old_bal + bet["stake"], 2)
+        _close_bet_issue_cancelled(bet["issue_number"], bet["stake"])
+        print(f"  Bet #{bet['issue_number']} cancelled by {bet['placed_by']}: +{bet['stake']:.2f} BRK refunded")
+
+        resolved_bet = dict(bet)
+        resolved_bet["won"]         = False
+        resolved_bet["payout"]      = 0.0
+        resolved_bet["cancelled"]   = True
+        resolved_bet["resolved_at"] = now.isoformat()
+        bets_data["resolved_bets"].append(resolved_bet)
+
+    bets_data["active_bets"] = still_active
+    return bets_data
 
 
 def _reject_bet_issue(issue_number, reason):
@@ -1704,9 +1768,18 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.06em;
     }}
-    .pill-win  {{ background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }}
-    .pill-loss {{ background: color-mix(in srgb, var(--red)   18%, transparent); color: var(--red); }}
-    .pill-open {{ background: color-mix(in srgb, var(--gold)  18%, transparent); color: var(--gold); }}
+    .pill-win       {{ background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }}
+    .pill-loss      {{ background: color-mix(in srgb, var(--red)   18%, transparent); color: var(--red); }}
+    .pill-open      {{ background: color-mix(in srgb, var(--gold)  18%, transparent); color: var(--gold); }}
+    .pill-cancelled {{ background: color-mix(in srgb, var(--text-muted) 18%, transparent); color: var(--text-muted); }}
+    .bet-cancel-btn {{
+      flex-shrink: 0; padding: 3px 10px; border-radius: 6px;
+      font-size: 0.70rem; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--red); color: var(--red);
+      background: transparent; transition: background 120ms;
+    }}
+    .bet-cancel-btn:hover {{ background: color-mix(in srgb, var(--red) 12%, transparent); }}
+    .bet-cancel-btn:disabled {{ opacity: 0.45; cursor: default; }}
     .bet-hist-body {{ flex: 1; min-width: 0; color: var(--text-secondary); }}
     .bet-hist-desc {{ color: var(--text-primary); font-weight: 500; margin-bottom: 3px; }}
     .bet-hist-meta {{ font-size: 0.72rem; color: var(--text-muted); }}
@@ -2920,18 +2993,73 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       }}
       mine.sort(function(a, b) {{ return (b.placed_at || '').localeCompare(a.placed_at || ''); }});
       el.innerHTML = mine.map(function(b) {{
-        var pillCls = b.status === 'open' ? 'pill-open' : b.status === 'win' ? 'pill-win' : 'pill-loss';
-        var pillTxt = b.status === 'open' ? 'Open' : b.status === 'win' ? 'Win' : 'Loss';
-        var payoutStr = b.status === 'win' ? '+' + b.payout.toFixed(2) + ' BRK' : b.status === 'open' ? 'Potential: ' + b.potential_payout.toFixed(2) + ' BRK' : '-' + b.stake.toFixed(2) + ' BRK';
+        var isCancelled = !!b.cancelled;
+        var pillCls = isCancelled ? 'pill-cancelled'
+                    : b.status === 'open' ? 'pill-open'
+                    : b.status === 'win'  ? 'pill-win' : 'pill-loss';
+        var pillTxt = isCancelled ? 'Cancelled'
+                    : b.status === 'open' ? 'Open'
+                    : b.status === 'win'  ? 'Win' : 'Loss';
+        var payoutStr = isCancelled         ? '\u21a9 ' + b.stake.toFixed(2) + ' BRK refunded'
+                      : b.status === 'win'  ? '+' + b.payout.toFixed(2) + ' BRK'
+                      : b.status === 'open' ? 'Potential: ' + b.potential_payout.toFixed(2) + ' BRK'
+                      :                       '-' + b.stake.toFixed(2) + ' BRK';
+
+        // Cancel button: only for open bets >1h before deadline
+        var cancelBtn = '';
+        if (b.status === 'open' && !isCancelled && b.issue_url) {{
+          var closeTime = new Date((b.deadline || '2099-01-01') + 'T23:00:00Z');
+          if (new Date() < closeTime) {{
+            var btnId = 'cxl-' + b.issue_number;
+            cancelBtn = '<button class="bet-cancel-btn" id="' + btnId + '" ' +
+              'onclick="cancelBet(' + b.issue_number + ',&#39;' + b.issue_url + '&#39;,this)">Cancel</button>';
+          }}
+        }}
+
         return '<div class="bet-hist-row">' +
           '<span class="bet-status-pill ' + pillCls + '">' + pillTxt + '</span>' +
           '<div class="bet-hist-body">' +
             '<div class="bet-hist-desc">' + betDescription(b) + '</div>' +
-            '<div class="bet-hist-meta">Stake: ' + b.stake.toFixed(2) + ' BRK &middot; Odds: ' + b.odds.toFixed(2) + 'x &middot; Deadline: ' + (b.deadline || '?') + ' &middot; ' + payoutStr + '</div>' +
+            '<div class="bet-hist-meta">' +
+              'Stake: ' + b.stake.toFixed(2) + ' BRK &middot; ' +
+              'Odds: ' + b.odds.toFixed(2) + 'x &middot; ' +
+              '<span style="color:var(--gold)">Closes: ' + (b.deadline || '?') + '</span>' +
+              ' &middot; ' + payoutStr +
+            '</div>' +
           '</div>' +
+          cancelBtn +
           (b.issue_url ? '<a href="' + b.issue_url + '" target="_blank" style="font-size:0.72rem;color:var(--text-muted);text-decoration:none;flex-shrink:0">#' + b.issue_number + '</a>' : '') +
         '</div>';
       }}).join('');
+    }}
+
+    // ── Cancel Bet ───────────────────────────────────────────────────────────
+
+    async function cancelBet(issueNumber, issueUrl, btn) {{
+      var user  = getGhUser();
+      var token = getGhToken();
+      if (!user || !token) return;
+      if (!confirm('Cancel this bet? Your stake will be refunded on the next hourly update.')) return;
+      btn.disabled = true;
+      btn.textContent = 'Cancelling\u2026';
+      try {{
+        var parts = issueUrl.split('/');
+        var repo  = parts[parts.length - 3];
+        var owner = parts[parts.length - 4];
+        var r = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/issues/' + issueNumber + '/comments', {{
+          method: 'POST',
+          headers: {{ 'Authorization': 'token ' + token, 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ body: 'cancel' }})
+        }});
+        if (!r.ok) throw new Error('comment failed: ' + r.status);
+        btn.textContent = '\u21a9 Requested';
+        btn.style.borderColor = 'var(--text-muted)';
+        btn.style.color = 'var(--text-muted)';
+      }} catch(err) {{
+        btn.disabled = false;
+        btn.textContent = 'Retry';
+        console.error(err);
+      }}
     }}
 
     // ── Place Bet modal ───────────────────────────────────────────────────────
@@ -3010,7 +3138,11 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
 
     function calcOdds(betType, params) {{
       var HOUSE_EDGE = 0.10;
-      var p = 0.5; // default even odds
+      var K_SCORE    = 5.0;
+      var K_RANK     = 4.0;
+      var p = 0.5;
+
+      function sigmoid(x) {{ return 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, x)))); }}
 
       if (betType === 'over_under') {{
         var ts = TEAM_SCORES[params.subject_team];
@@ -3018,27 +3150,17 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         var current   = ts[params.metric] || 0;
         var threshold = parseFloat(params.threshold) || 1;
         var ratio     = threshold > 0 ? current / threshold : 1;
-        var pOver;
-        if      (ratio >= 1.3) pOver = 0.88;
-        else if (ratio >= 1.1) pOver = 0.75;
-        else if (ratio >= 0.9) pOver = 0.55;
-        else if (ratio >= 0.7) pOver = 0.35;
-        else if (ratio >= 0.5) pOver = 0.20;
-        else                   pOver = 0.10;
+        var pOver     = sigmoid(K_SCORE * (ratio - 1));
         p = params.direction === 'over' ? pOver : (1 - pOver);
       }}
 
       else if (betType === 'rank') {{
         var ts = TEAM_SCORES[params.subject_team];
         if (!ts) return 2.0;
-        var cur  = ts.rank || TEAMS.length;
-        var tgt  = parseInt(params.target_rank) || 1;
-        var gap  = params.direction === 'at_or_better' ? cur - tgt : tgt - cur;
-        if      (gap <= 0) p = 0.80;
-        else if (gap === 1) p = 0.45;
-        else if (gap === 2) p = 0.25;
-        else if (gap === 3) p = 0.15;
-        else               p = 0.08;
+        var cur = ts.rank || TEAMS.length;
+        var tgt = parseInt(params.target_rank) || 1;
+        var gap = params.direction === 'at_or_better' ? cur - tgt : tgt - cur;
+        p = sigmoid(-K_RANK * gap / Math.max(TEAMS.length, 1));
       }}
 
       else if (betType === 'milestone') {{
@@ -3047,11 +3169,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         var current = ts[params.metric] || 0;
         var target  = parseInt(params.target) || 1;
         var ratio   = target > 0 ? current / target : 1;
-        if      (ratio >= 1.0) p = 0.90;
-        else if (ratio >= 0.8) p = 0.65;
-        else if (ratio >= 0.6) p = 0.45;
-        else if (ratio >= 0.4) p = 0.25;
-        else                   p = 0.12;
+        p = sigmoid(K_SCORE * (ratio - 1));
       }}
 
       else if (betType === 'head_to_head') {{
@@ -3062,7 +3180,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         var scA = tsA[key] || 0;
         var scB = tsB[key] || 0;
         var total = scA + scB;
-        var pA  = total > 0 ? scA / total : 0.5;
+        var pA = total > 0 ? scA / total : 0.5;
         p = params.pick === 'team_a' ? pA : (1 - pA);
       }}
 
@@ -3366,6 +3484,7 @@ def main():
     bets_data = load_bets(out_dir, teams)
     bet_issues = fetch_bet_issues()
     print(f"  {len(bet_issues)} pending bet issue(s) found")
+    bets_data = process_cancellations(bets_data, bet_issues)
     bets_data = sync_new_bets(bets_data, bet_issues, teams, scores, ranked)
     bets_data = resolve_bets(bets_data, teams, scores, ranked)
     save_bets(bets_data, out_dir)
