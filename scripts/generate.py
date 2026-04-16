@@ -36,7 +36,8 @@ STORY_POINTS_MAP = {
 }
 
 COIN_LABEL = "\U0001fa99"  # 🪙 — professor's budget label
-SCOREBOARD_REPO = "first-lego-league-scoreboard"  # repo where bet issues are filed
+SCOREBOARD_OWNER = "polMarsol"                    # owner of the scoreboard repo
+SCOREBOARD_REPO  = "first-lego-league-scoreboard"  # repo where bet issues are filed
 BRICKS_START = 100.0  # starting Bricks per member
 
 # Lego brick SVG icon (from Downloads/brick.svg — white bg removed, fill→currentColor)
@@ -367,7 +368,7 @@ def load_bets(out_dir, teams):
 
 def fetch_bet_issues():
     """Fetch open issues labeled 'bet' from the scoreboard repo."""
-    url = f"https://api.github.com/repos/{ORG}/{SCOREBOARD_REPO}/issues"
+    url = f"https://api.github.com/repos/{SCOREBOARD_OWNER}/{SCOREBOARD_REPO}/issues"
     bets = []
     page = 1
     while True:
@@ -502,7 +503,7 @@ def _close_bet_issue(issue_number, won, payout, odds):
     else:
         body = "**LOSS** \U0001f534 — Stake lost."
 
-    base = f"https://api.github.com/repos/{ORG}/{SCOREBOARD_REPO}/issues/{issue_number}"
+    base = f"https://api.github.com/repos/{SCOREBOARD_OWNER}/{SCOREBOARD_REPO}/issues/{issue_number}"
     try:
         requests.post(base + "/comments", headers=HEADERS, json={"body": body}, timeout=10)
         requests.patch(base, headers=HEADERS, json={"state": "closed"}, timeout=10)
@@ -2015,7 +2016,8 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     const ACTIVE_BETS    = {active_bets_json};
     const RESOLVED_BETS  = {resolved_bets_json};
     const TEAM_SCORES    = {team_scores_json};
-    const SCOREBOARD_REPO = "{SCOREBOARD_REPO}";
+    const SCOREBOARD_OWNER = "{SCOREBOARD_OWNER}";
+    const SCOREBOARD_REPO  = "{SCOREBOARD_REPO}";
     // Derive flat chart events from rich issue data
     const RAW = ISSUES.map(e => ({{ date: e.date, team: e.impl_team, score: e.score, sp: e.sp }}));
 
@@ -3003,7 +3005,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
 
       var desc = betDescription({{bet_type: type, params: params}});
       var title = '[BET] ' + user.login + ': ' + desc + ' by ' + deadline;
-      var body  = '```json\n' + JSON.stringify(betPayload, null, 2) + '\n```';
+      var body  = '```json\\n' + JSON.stringify(betPayload, null, 2) + '\\n```';
 
       var btn = document.getElementById('bet-submit-btn');
       btn.disabled = true;
@@ -3011,7 +3013,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       document.getElementById('bet-notice').textContent = '';
 
       try {{
-        var r = await fetch('https://api.github.com/repos/' + ORG + '/' + SCOREBOARD_REPO + '/issues', {{
+        var r = await fetch('https://api.github.com/repos/' + SCOREBOARD_OWNER + '/' + SCOREBOARD_REPO + '/issues', {{
           method: 'POST',
           headers: {{ 'Authorization': 'token ' + token, 'Content-Type': 'application/json' }},
           body: JSON.stringify({{ title: title, body: body, labels: ['bet'] }})
