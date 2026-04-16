@@ -285,6 +285,15 @@
       color: var(--text-muted);
       margin-top: 2px;
     }
+    .pts-expected {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: var(--accent);
+      margin-top: 2px;
+      opacity: 0.8;
+      font-style: italic;
+    }
 
     /* Total */
     .col-total {
@@ -894,7 +903,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">25.75</span>
-                <span class="pts-sub">18 issues</span>
+                <span class="pts-sub">18 done</span>
+                <span class="pts-expected" title="Expected SP from assigned open issues">+3.00 expected</span>
               </td>
               <td class="col-total">28.25</td>
               <td class="col-balance">
@@ -916,7 +926,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">24.75</span>
-                <span class="pts-sub">14 issues</span>
+                <span class="pts-sub">14 done</span>
+                <span class="pts-expected" title="Expected SP from assigned open issues">+7.00 expected</span>
               </td>
               <td class="col-total">25.00</td>
               <td class="col-balance">
@@ -938,7 +949,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">11.25</span>
-                <span class="pts-sub">12 issues</span>
+                <span class="pts-sub">12 done</span>
+                <span class="pts-expected" title="Expected SP from assigned open issues">+3.00 expected</span>
               </td>
               <td class="col-total">13.75</td>
               <td class="col-balance">
@@ -960,7 +972,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">11.25</span>
-                <span class="pts-sub">9 issues</span>
+                <span class="pts-sub">9 done</span>
+                <span class="pts-expected" title="Expected SP from assigned open issues">+6.00 expected</span>
               </td>
               <td class="col-total">13.00</td>
               <td class="col-balance">
@@ -982,7 +995,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">13.00</span>
-                <span class="pts-sub">9 issues</span>
+                <span class="pts-sub">9 done</span>
+                <span class="pts-expected" title="Expected SP from assigned open issues">+0.50 expected</span>
               </td>
               <td class="col-total">13.00</td>
               <td class="col-balance">
@@ -1004,7 +1018,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">4.75</span>
-                <span class="pts-sub">5 issues</span>
+                <span class="pts-sub">5 done</span>
+                <span class="pts-expected" title="Expected SP from assigned open issues">+2.00 expected</span>
               </td>
               <td class="col-total">9.75</td>
               <td class="col-balance">
@@ -1026,7 +1041,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">7.50</span>
-                <span class="pts-sub">4 issues</span>
+                <span class="pts-sub">4 done</span>
+                <span class="pts-expected" title="Expected SP from assigned open issues">+3.00 expected</span>
               </td>
               <td class="col-total">8.50</td>
               <td class="col-balance">
@@ -1048,7 +1064,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">3.25</span>
-                <span class="pts-sub">3 issues</span>
+                <span class="pts-sub">3 done</span>
+                <span class="pts-expected" title="Expected SP from assigned open issues">+5.00 expected</span>
               </td>
               <td class="col-total">4.25</td>
               <td class="col-balance">
@@ -1070,7 +1087,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">3.50</span>
-                <span class="pts-sub">3 issues</span>
+                <span class="pts-sub">3 done</span>
+                
               </td>
               <td class="col-total">3.75</td>
               <td class="col-balance">
@@ -1092,7 +1110,8 @@
               </td>
               <td class="col-pts">
                 <span class="pts-value">2.25</span>
-                <span class="pts-sub">2 issues</span>
+                <span class="pts-sub">2 done</span>
+                <span class="pts-expected" title="Expected SP from assigned open issues">+1.50 expected</span>
               </td>
               <td class="col-total">2.50</td>
               <td class="col-balance">
@@ -1116,7 +1135,7 @@
     </div>
 
     <div class="live-row">
-      <span class="updated">Last updated: 2026-04-16 07:31 UTC</span>
+      <span class="updated">Last updated: 2026-04-16 08:33 UTC</span>
       <span class="live-indicator">
         <span class="live-dot"></span>
         Next update in <span id="countdown">--:--</span>
@@ -1244,10 +1263,10 @@
     const TEAMS        = ["Janics22 & ikeerwp", "polMarsol & MartiFarranC", "oRioL-04 & kirklan34", "cesar606 & mikaropa11", "Ferranicu & DanGxG", "IvonneHernan & nigelboada", "xji650 & xBlanco998", "MireiaTerri & xertrec", "Jakub2504 & Mooliner", "Niltm35 & espitijungle"];
     const MEMBERS      = {"Janics22 & ikeerwp": ["Janics22", "ikeerwp"], "polMarsol & MartiFarranC": ["polMarsol", "MartiFarranC"], "oRioL-04 & kirklan34": ["oRioL-04", "kirklan34"], "cesar606 & mikaropa11": ["cesar606", "mikaropa11"], "Ferranicu & DanGxG": ["Ferranicu", "DanGxG"], "IvonneHernan & nigelboada": ["IvonneHernan", "nigelboada"], "xji650 & xBlanco998": ["xji650", "xBlanco998"], "MireiaTerri & xertrec": ["MireiaTerri", "xertrec"], "Jakub2504 & Mooliner": ["Jakub2504", "Mooliner"], "Niltm35 & espitijungle": ["Niltm35", "espitijungle"]};
     const COLORS       = ["#2F81F7", "#3FB950", "#D4A017", "#F78166", "#A371F7", "#FFA657", "#79C0FF", "#FF7B72", "#56D364", "#E5C07B"];
-    const OPEN_ISSUES  = [{"number": 65, "title": "[Feat]: Allow deleting matches from the match details page", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 66, "title": "[Feat]: Allow deleting scientific projects from the scientific projects details page", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 67, "title": "[Feat]: Allow deleting editions from the edition details page", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 68, "title": "[Bug]: Team details page does not handle missing coach correctly", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 73, "title": "[Feat]: Filter matches by participating team", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 134, "title": "[Feat]: Add Cucumber BDD acceptance tests for Ranking retrieval", "repo": "first-lego-league-backend", "sp": 0.5, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "espitijungle"}, {"number": 69, "title": "[Feat]: Search teams by name", "repo": "first-lego-league-frontend", "sp": 0.5, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 75, "title": "[Feat]: Show related edition in team details", "repo": "first-lego-league-frontend", "sp": 0.5, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 136, "title": "[Feat]: Add Cucumber BDD acceptance tests for MediaContent access control", "repo": "first-lego-league-backend", "sp": 0.25, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "espitijungle"}, {"number": 71, "title": "[Feat]: Force session logout on password update", "repo": "first-lego-league-frontend", "sp": 0.25, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "xBlanco998"}, {"number": 60, "title": "[Feat]: Match creation form", "repo": "first-lego-league-frontend", "sp": 4.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["Ferranicu", "DanGxG"], "creator": "pol-rivero"}, {"number": 39, "title": "[Feat]: Form for editing an edition", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["xji650", "xBlanco998"], "creator": "pol-rivero"}, {"number": 47, "title": "[Feat]: Team creation form", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["Ferranicu", "DanGxG"], "creator": "pol-rivero"}, {"number": 50, "title": "[Feat]: Allow administrators to create new administrators from the administrators page", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["xertrec", "MireiaTerri"], "creator": "IvonneHernan"}, {"number": 36, "title": "[Feat]: Implement Volunteers list page /volunteers", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["xertrec", "MireiaTerri"], "creator": "espitijungle"}, {"number": 56, "title": "[Feat]: Implement Match Results entry form for Referees", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["polMarsol", "MartiFarranC"], "creator": "nigelboada"}, {"number": 70, "title": "[Feat]: Implement edition state transition controls", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["nigelboada", "IvonneHernan"], "creator": "polMarsol"}, {"number": 41, "title": "[Feat]: Edition year selector", "repo": "first-lego-league-frontend", "sp": 2.0, "status": "\ud83d\udc40 In review", "assignees": ["xji650", "xBlanco998"], "creator": "pol-rivero"}, {"number": 139, "title": "[Refactor]: Team-Edition Relationship Mapping", "repo": "first-lego-league-backend", "sp": 2.0, "status": "\ud83d\udc40 In review", "assignees": ["Niltm35", "espitijungle"], "creator": "xji650"}, {"number": 55, "title": "[Feat]: Implement Team Members management section in Team detail page", "repo": "first-lego-league-frontend", "sp": 2.0, "status": "\ud83d\udc40 In review", "assignees": ["kirklan34", "oRioL-04"], "creator": "nigelboada"}, {"number": 40, "title": "[Feat]: Assignment of Awards to Teams with edition validation", "repo": "first-lego-league-backend", "sp": 1.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["cesar606", "mikaropa11"], "creator": "xBlanco998"}, {"number": 34, "title": "[Feat]: Add awards information to /editions/[id]", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["kirklan34", "oRioL-04"], "creator": "espitijungle"}, {"number": 54, "title": "[Feat]: Add Cucumber BDD scenarios for Referee CRUD operations", "repo": "first-lego-league-backend", "sp": 0.5, "status": "\ud83c\udfd7 In Progress", "assignees": ["cesar606", "mikaropa11"], "creator": "espitijungle"}];
+    const OPEN_ISSUES  = [{"number": 65, "title": "[Feat]: Allow deleting matches from the match details page", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 66, "title": "[Feat]: Allow deleting scientific projects from the scientific projects details page", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 67, "title": "[Feat]: Allow deleting editions from the edition details page", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 68, "title": "[Bug]: Team details page does not handle missing coach correctly", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 73, "title": "[Feat]: Filter matches by participating team", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 69, "title": "[Feat]: Search teams by name", "repo": "first-lego-league-frontend", "sp": 0.5, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 75, "title": "[Feat]: Show related edition in team details", "repo": "first-lego-league-frontend", "sp": 0.5, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "Janics22"}, {"number": 136, "title": "[Feat]: Add Cucumber BDD acceptance tests for MediaContent access control", "repo": "first-lego-league-backend", "sp": 0.25, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "espitijungle"}, {"number": 71, "title": "[Feat]: Force session logout on password update", "repo": "first-lego-league-frontend", "sp": 0.25, "status": "\ud83d\udccb Backlog", "assignees": [], "creator": "xBlanco998"}, {"number": 60, "title": "[Feat]: Match creation form", "repo": "first-lego-league-frontend", "sp": 4.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["Ferranicu", "DanGxG"], "creator": "pol-rivero"}, {"number": 39, "title": "[Feat]: Form for editing an edition", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["xji650", "xBlanco998"], "creator": "pol-rivero"}, {"number": 47, "title": "[Feat]: Team creation form", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["Ferranicu", "DanGxG"], "creator": "pol-rivero"}, {"number": 50, "title": "[Feat]: Allow administrators to create new administrators from the administrators page", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["xertrec", "MireiaTerri"], "creator": "IvonneHernan"}, {"number": 36, "title": "[Feat]: Implement Volunteers list page /volunteers", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["xertrec", "MireiaTerri"], "creator": "espitijungle"}, {"number": 56, "title": "[Feat]: Implement Match Results entry form for Referees", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["polMarsol", "MartiFarranC"], "creator": "nigelboada"}, {"number": 70, "title": "[Feat]: Implement edition state transition controls", "repo": "first-lego-league-frontend", "sp": 3.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["nigelboada", "IvonneHernan"], "creator": "polMarsol"}, {"number": 41, "title": "[Feat]: Edition year selector", "repo": "first-lego-league-frontend", "sp": 2.0, "status": "\ud83d\udc40 In review", "assignees": ["xji650", "xBlanco998"], "creator": "pol-rivero"}, {"number": 139, "title": "[Refactor]: Team-Edition Relationship Mapping", "repo": "first-lego-league-backend", "sp": 2.0, "status": "\ud83d\udc40 In review", "assignees": ["Niltm35", "espitijungle"], "creator": "xji650"}, {"number": 55, "title": "[Feat]: Implement Team Members management section in Team detail page", "repo": "first-lego-league-frontend", "sp": 2.0, "status": "\ud83d\udc40 In review", "assignees": ["kirklan34", "oRioL-04"], "creator": "nigelboada"}, {"number": 40, "title": "[Feat]: Assignment of Awards to Teams with edition validation", "repo": "first-lego-league-backend", "sp": 1.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["cesar606", "mikaropa11"], "creator": "xBlanco998"}, {"number": 34, "title": "[Feat]: Add awards information to /editions/[id]", "repo": "first-lego-league-frontend", "sp": 1.0, "status": "\ud83c\udfd7 In Progress", "assignees": ["kirklan34", "oRioL-04"], "creator": "espitijungle"}, {"number": 54, "title": "[Feat]: Add Cucumber BDD scenarios for Referee CRUD operations", "repo": "first-lego-league-backend", "sp": 0.5, "status": "\ud83c\udfd7 In Progress", "assignees": ["cesar606", "mikaropa11"], "creator": "espitijungle"}, {"number": 134, "title": "[Feat]: Add Cucumber BDD acceptance tests for Ranking retrieval", "repo": "first-lego-league-backend", "sp": 0.5, "status": "\ud83d\udc40 In review", "assignees": ["Mooliner", "Jakub2504"], "creator": "espitijungle"}];
     const ORG          = "UdL-EPS-SoftArch-Igualada";
-    const CLIENT_ID    = "Ov23liZ8gYuaTUgToJXQ";
-    const WORKER_URL   = "https://fll-oauth.polmartor5.workers.dev";
+    const CLIENT_ID    = "";
+    const WORKER_URL   = "";
     // Derive flat chart events from rich issue data
     const RAW = ISSUES.map(e => ({ date: e.date, team: e.impl_team, score: e.score, sp: e.sp }));
 

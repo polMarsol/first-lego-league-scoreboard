@@ -236,9 +236,9 @@ def find_implementer(issue, user_to_team):
 
     return None, None
 
-def calculate_scores(teams, user_to_team, all_issues, coin_issues):
+def calculate_scores(teams, user_to_team, all_issues, coin_issues, open_issues=None):
     scores = {i: {"creation": 0.0, "implementation": 0.0, "issues_created": 0, "issues_implemented": 0,
-                  "balance": 0.0, "coin_issues": 0}
+                  "balance": 0.0, "coin_issues": 0, "expected_sp": 0.0, "expected_issues": 0}
               for i in range(len(teams))}
 
     for issue in all_issues:
@@ -268,6 +268,16 @@ def calculate_scores(teams, user_to_team, all_issues, coin_issues):
         if creator_team_id is not None:
             scores[creator_team_id]["balance"] += issue["story_points"]
             scores[creator_team_id]["coin_issues"] += 1
+
+    # Expected SP: sum SP of open issues assigned to each team
+    for issue in (open_issues or []):
+        seen_teams = set()
+        for assignee in issue.get("assignees", []):
+            tid = user_to_team.get(assignee.lower())
+            if tid is not None and tid not in seen_teams:
+                seen_teams.add(tid)
+                scores[tid]["expected_sp"] += issue["sp"]
+                scores[tid]["expected_issues"] += 1
 
     return scores
 
@@ -375,7 +385,8 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
               </td>
               <td class="col-pts">
                 <span class="pts-value">{s["implementation"]:.2f}</span>
-                <span class="pts-sub">{s["issues_implemented"]} issues</span>
+                <span class="pts-sub">{s["issues_implemented"]} done</span>
+                {"" if not s["expected_sp"] else f'<span class="pts-expected" title="Expected SP from assigned open issues">+{s["expected_sp"]:.2f} expected</span>'}
               </td>
               <td class="col-total">{total:.2f}</td>
               <td class="col-balance">
@@ -682,6 +693,15 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       font-size: 0.68rem;
       color: var(--text-muted);
       margin-top: 2px;
+    }}
+    .pts-expected {{
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: var(--accent);
+      margin-top: 2px;
+      opacity: 0.8;
+      font-style: italic;
     }}
 
     /* Total */
@@ -2193,7 +2213,7 @@ def main():
     print(f"  {len(coin_issues)} budget-labeled issues found")
     print(f"  {len(open_issues)} open issues found")
 
-    scores = calculate_scores(teams, user_to_team, all_issues, coin_issues)
+    scores = calculate_scores(teams, user_to_team, all_issues, coin_issues, open_issues)
 
     out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs")
     os.makedirs(out_dir, exist_ok=True)
