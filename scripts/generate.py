@@ -366,6 +366,9 @@ def load_bets(out_dir, teams):
     return data
 
 
+MAX_ACTIVE_BETS_PER_USER = 5  # spam guard
+
+
 def fetch_bet_issues():
     """Fetch open issues labeled 'bet' from the scoreboard repo."""
     url = f"https://api.github.com/repos/{SCOREBOARD_OWNER}/{SCOREBOARD_REPO}/issues"
@@ -399,7 +402,9 @@ def fetch_bet_issues():
                 except json.JSONDecodeError:
                     continue
             bet_data["_issue_number"] = issue["number"]
-            bet_data["_issue_url"] = issue["html_url"]
+            bet_data["_issue_url"]    = issue["html_url"]
+            # Always use the GitHub issue author — never trust the JSON field
+            bet_data["_author"]       = issue["user"]["login"]
             bets.append(bet_data)
         if len(items) < 100:
             break
@@ -407,25 +412,169 @@ def fetch_bet_issues():
     return bets
 
 
-def sync_new_bets(bets_data, bet_issues):
+def _calc_odds_server(bet_type, params, teams, scores, ranked):
+    """Recalculate odds server-side (mirrors JS calcOdds). Returns float."""
+    HOUSE_EDGE = 0.10
+    p = 0.5
+
+    name_to_id = {t["name"]: t["id"] for t in teams}
+
+    def total(tid):
+        return scores[tid]["creation"] + scores[tid]["implementation"]
+
+    def metric(tid, key):
+        if key == "total":
+            return total(tid)
+        return scores[tid].get(key, 0)
+
+    if bet_type == "over_under":
+        tid = name_to_id.get(params.get("subject_team"))
+        if tid is None:
+            return 2.0
+        current   = metric(tid, params.get("metric", "total"))
+        threshold = float(params.get("threshold") or 1)
+        ratio     = current / threshold if threshold > 0 else 1.0
+        if   ratio >= 1.3: p_over = 0.88
+        elif ratio >= 1.1: p_over = 0.75
+        elif ratio >= 0.9: p_over = 0.55
+        elif ratio >= 0.7: p_over = 0.35
+        elif ratio >= 0.5: p_over = 0.20
+        else:              p_over = 0.10
+        p = p_over if params.get("direction") == "over" else (1 - p_over)
+
+    elif bet_type == "rank":
+        tid = name_to_id.get(params.get("subject_team"))
+        if tid is None:
+            return 2.0
+        cur  = (ranked.index(tid) + 1) if tid in ranked else len(ranked) + 1
+        tgt  = int(params.get("target_rank") or 1)
+        gap  = (cur - tgt) if params.get("direction") == "at_or_better" else (tgt - cur)
+        if   gap <= 0:  p = 0.80
+        elif gap == 1:  p = 0.45
+        elif gap == 2:  p = 0.25
+        elif gap == 3:  p = 0.15
+        else:           p = 0.08
+
+    elif bet_type == "milestone":
+        tid = name_to_id.get(params.get("subject_team"))
+        if tid is None:
+            return 2.0
+        current = scores[tid].get(params.get("metric", "issues_created"), 0)
+        target  = int(params.get("target") or 1)
+        ratio   = current / target if target > 0 else 1.0
+        if   ratio >= 1.0: p = 0.90
+        elif ratio >= 0.8: p = 0.65
+        elif ratio >= 0.6: p = 0.45
+        elif ratio >= 0.4: p = 0.25
+        else:              p = 0.12
+
+    elif bet_type == "head_to_head":
+        id_a = name_to_id.get(params.get("team_a"))
+        id_b = name_to_id.get(params.get("team_b"))
+        if id_a is None or id_b is None:
+            return 2.0
+        sc_a  = metric(id_a, params.get("metric", "total"))
+        sc_b  = metric(id_b, params.get("metric", "total"))
+        total_ = sc_a + sc_b
+        p_a   = (sc_a / total_) if total_ > 0 else 0.5
+        p     = p_a if params.get("pick") == "team_a" else (1 - p_a)
+
+    p   = max(0.05, min(0.95, p))
+    raw = (1 / p) * (1 - HOUSE_EDGE)
+    return round(max(1.05, min(9.0, raw)), 2)
+
+
+def _reject_bet_issue(issue_number, reason):
+    """Post a rejection comment and close the bet issue (best-effort)."""
+    base = f"https://api.github.com/repos/{SCOREBOARD_OWNER}/{SCOREBOARD_REPO}/issues/{issue_number}"
+    body = f"\u274c **Bet rejected:** {reason}"
+    try:
+        requests.post(base + "/comments", headers=HEADERS, json={"body": body}, timeout=10)
+        requests.patch(base, headers=HEADERS, json={"state": "closed"}, timeout=10)
+    except Exception as exc:
+        print(f"  Warning: could not reject bet #{issue_number}: {exc}")
+
+
+def sync_new_bets(bets_data, bet_issues, teams, scores, ranked):
     """Register new bet issues, deducting stake from placer's balance."""
     existing_ids = {b["issue_number"] for b in bets_data["active_bets"]}
     existing_ids |= {b["issue_number"] for b in bets_data["resolved_bets"]}
+
+    # Build team-name → set-of-members for own-team check
+    name_to_members = {t["name"]: set(m.lower() for m in t["members"]) for t in teams}
+
+    today = datetime.now(timezone.utc).date()
 
     for issue in bet_issues:
         issue_num = issue.get("_issue_number")
         if issue_num in existing_ids:
             continue
 
-        placed_by = issue.get("placed_by", "").strip()
+        # Always use the GitHub issue author — never the JSON field
+        placed_by = issue.get("_author", "").strip()
+        if not placed_by:
+            continue
+
         try:
             stake = float(issue.get("stake", 0))
-            odds  = float(issue.get("odds", 1.0))
         except (TypeError, ValueError):
             continue
 
-        if not placed_by or stake <= 0 or odds < 1.0:
+        if stake <= 0:
+            _reject_bet_issue(issue_num, "stake must be greater than 0")
+            existing_ids.add(issue_num)
             continue
+
+        # Minimum deadline: must be at least tomorrow
+        deadline_str = issue.get("deadline", "")
+        try:
+            deadline = datetime.strptime(deadline_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            _reject_bet_issue(issue_num, "missing or invalid deadline (use YYYY-MM-DD)")
+            existing_ids.add(issue_num)
+            continue
+        if deadline <= today:
+            _reject_bet_issue(issue_num, "deadline must be at least tomorrow")
+            existing_ids.add(issue_num)
+            continue
+
+        bet_type = issue.get("bet_type", "")
+        params   = issue.get("params", {})
+
+        # H2H same team → reject
+        if bet_type == "head_to_head" and params.get("team_a") == params.get("team_b"):
+            _reject_bet_issue(issue_num, "head-to-head bet cannot use the same team on both sides")
+            existing_ids.add(issue_num)
+            continue
+
+        # Block betting on own team
+        placed_by_lower = placed_by.lower()
+        if bet_type in ("over_under", "rank", "milestone"):
+            subject = params.get("subject_team", "")
+            if placed_by_lower in name_to_members.get(subject, set()):
+                _reject_bet_issue(issue_num, "you cannot bet on your own team")
+                existing_ids.add(issue_num)
+                continue
+        elif bet_type == "head_to_head":
+            for side in ("team_a", "team_b"):
+                if placed_by_lower in name_to_members.get(params.get(side, ""), set()):
+                    _reject_bet_issue(issue_num, "you cannot bet on a head-to-head that includes your own team")
+                    existing_ids.add(issue_num)
+                    break
+            else:
+                pass  # no own-team violation, continue normally
+            if issue_num in existing_ids:
+                continue
+
+        # Spam guard: max active bets per user
+        active_count = sum(1 for b in bets_data["active_bets"] if b["placed_by"] == placed_by)
+        if active_count >= MAX_ACTIVE_BETS_PER_USER:
+            _reject_bet_issue(issue_num, f"maximum of {MAX_ACTIVE_BETS_PER_USER} active bets per user reached")
+            existing_ids.add(issue_num)
+            continue
+
+        # Recalculate odds server-side — never trust the client value
+        odds = _calc_odds_server(bet_type, params, teams, scores, ranked)
 
         balance = bets_data["member_balances"].get(placed_by, 0)
         if balance < stake:
@@ -434,16 +583,16 @@ def sync_new_bets(bets_data, bet_issues):
 
         bets_data["member_balances"][placed_by] = round(balance - stake, 2)
         bets_data["active_bets"].append({
-            "issue_number": issue_num,
-            "issue_url":    issue.get("_issue_url", ""),
-            "bet_type":     issue.get("bet_type", ""),
-            "placed_by":    placed_by,
-            "stake":        stake,
-            "odds":         odds,
+            "issue_number":    issue_num,
+            "issue_url":       issue.get("_issue_url", ""),
+            "bet_type":        bet_type,
+            "placed_by":       placed_by,
+            "stake":           stake,
+            "odds":            odds,
             "potential_payout": round(stake * odds, 2),
-            "deadline":     issue.get("deadline", ""),
-            "params":       issue.get("params", {}),
-            "placed_at":    issue.get("placed_at", datetime.now(timezone.utc).isoformat()),
+            "deadline":        deadline_str,
+            "params":          params,
+            "placed_at":       issue.get("placed_at", datetime.now(timezone.utc).isoformat()),
         })
         existing_ids.add(issue_num)
         print(f"  New bet #{issue_num} by {placed_by}: {stake:.2f} BRK @ {odds:.2f}x")
@@ -2986,10 +3135,31 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       if (stake > bal) {{ document.getElementById('bet-notice').textContent = 'Insufficient Bricks (' + bal.toFixed(2) + ' available).'; return; }}
       if (!deadline) {{ document.getElementById('bet-notice').textContent = 'Set a deadline.'; return; }}
 
+      // Deadline must be at least tomorrow
+      var today = new Date(); today.setHours(0,0,0,0);
+      var dlDate = new Date(deadline + 'T00:00:00');
+      if (dlDate <= today) {{ document.getElementById('bet-notice').textContent = 'Deadline must be at least tomorrow.'; return; }}
+
       // Validate head_to_head: team_a != team_b
       if (type === 'head_to_head' && params.team_a === params.team_b) {{
         document.getElementById('bet-notice').textContent = 'Team A and Team B must be different.';
         return;
+      }}
+
+      // Cannot bet on your own team
+      var myLogin = user.login.toLowerCase();
+      var subjectTeams = [];
+      if (type === 'head_to_head') {{
+        subjectTeams = [params.team_a, params.team_b];
+      }} else {{
+        subjectTeams = [params.subject_team];
+      }}
+      for (var si = 0; si < subjectTeams.length; si++) {{
+        var members = (MEMBERS[subjectTeams[si]] || []).map(function(m) {{ return m.toLowerCase(); }});
+        if (members.indexOf(myLogin) !== -1) {{
+          document.getElementById('bet-notice').textContent = 'You cannot bet on your own team.';
+          return;
+        }}
       }}
 
       var betPayload = {{
@@ -3196,7 +3366,7 @@ def main():
     bets_data = load_bets(out_dir, teams)
     bet_issues = fetch_bet_issues()
     print(f"  {len(bet_issues)} pending bet issue(s) found")
-    bets_data = sync_new_bets(bets_data, bet_issues)
+    bets_data = sync_new_bets(bets_data, bet_issues, teams, scores, ranked)
     bets_data = resolve_bets(bets_data, teams, scores, ranked)
     save_bets(bets_data, out_dir)
 
