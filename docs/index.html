@@ -1264,7 +1264,7 @@
     </div>
 
     <div class="live-row">
-      <span class="updated">Last updated: 2026-04-16 12:00 UTC</span>
+      <span class="updated">Last updated: 2026-04-16 12:35 UTC</span>
       <span class="live-indicator">
         <span class="live-dot"></span>
         Next update in <span id="countdown">--:--</span>
@@ -2565,10 +2565,31 @@
       if (stake > bal) { document.getElementById('bet-notice').textContent = 'Insufficient Bricks (' + bal.toFixed(2) + ' available).'; return; }
       if (!deadline) { document.getElementById('bet-notice').textContent = 'Set a deadline.'; return; }
 
+      // Deadline must be at least tomorrow
+      var today = new Date(); today.setHours(0,0,0,0);
+      var dlDate = new Date(deadline + 'T00:00:00');
+      if (dlDate <= today) { document.getElementById('bet-notice').textContent = 'Deadline must be at least tomorrow.'; return; }
+
       // Validate head_to_head: team_a != team_b
       if (type === 'head_to_head' && params.team_a === params.team_b) {
         document.getElementById('bet-notice').textContent = 'Team A and Team B must be different.';
         return;
+      }
+
+      // Cannot bet on your own team
+      var myLogin = user.login.toLowerCase();
+      var subjectTeams = [];
+      if (type === 'head_to_head') {
+        subjectTeams = [params.team_a, params.team_b];
+      } else {
+        subjectTeams = [params.subject_team];
+      }
+      for (var si = 0; si < subjectTeams.length; si++) {
+        var members = (MEMBERS[subjectTeams[si]] || []).map(function(m) { return m.toLowerCase(); });
+        if (members.indexOf(myLogin) !== -1) {
+          document.getElementById('bet-notice').textContent = 'You cannot bet on your own team.';
+          return;
+        }
       }
 
       var betPayload = {
