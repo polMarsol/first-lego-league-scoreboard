@@ -3060,7 +3060,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         // Update displayed balance instantly
         if (typeof data.new_balance === 'number') {{
           MEMBER_BRICKS[user.login] = data.new_balance;
-          renderBetAuthBar();
+          updateBetAuthBar();
         }}
         // Mark bet as cancelled in local data so re-renders reflect it
         ACTIVE_BETS.forEach(function(b) {{
