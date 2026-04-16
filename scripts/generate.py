@@ -57,9 +57,10 @@ CHART_COLORS = [
 ]
 
 # ── OAuth (GitHub OAuth App + Cloudflare Worker proxy) ─────────────────────────
-# Set these as GitHub Actions secrets: OAUTH_CLIENT_ID, OAUTH_WORKER_URL
-OAUTH_CLIENT_ID  = os.environ.get("OAUTH_CLIENT_ID", "")
-OAUTH_WORKER_URL = os.environ.get("OAUTH_WORKER_URL", "")
+# Set these as GitHub Actions secrets: OAUTH_CLIENT_ID, OAUTH_WORKER_URL, CANCEL_WORKER_URL
+OAUTH_CLIENT_ID   = os.environ.get("OAUTH_CLIENT_ID", "")
+OAUTH_WORKER_URL  = os.environ.get("OAUTH_WORKER_URL", "")
+CANCEL_WORKER_URL = os.environ.get("CANCEL_WORKER_URL", "")
 
 # ── Teams ───────────────────────────────────────────────────────────────────────
 
@@ -841,6 +842,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     open_issues_json   = json.dumps(open_issues)
     oauth_client_id    = json.dumps(OAUTH_CLIENT_ID)
     oauth_worker_url   = json.dumps(OAUTH_WORKER_URL)
+    cancel_worker_url  = json.dumps(CANCEL_WORKER_URL)
 
     _bets = bets_data or {"member_balances": {}, "active_bets": [], "resolved_bets": []}
     member_bricks_json  = json.dumps(_bets["member_balances"])
@@ -2232,7 +2234,8 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     const OPEN_ISSUES   = {open_issues_json};
     const ORG           = "UdL-EPS-SoftArch-Igualada";
     const CLIENT_ID     = {oauth_client_id};
-    const WORKER_URL    = {oauth_worker_url};
+    const WORKER_URL        = {oauth_worker_url};
+    const CANCEL_WORKER_URL = {cancel_worker_url};
     // Betting data
     const MEMBER_BRICKS  = {member_bricks_json};
     const ACTIVE_BETS    = {active_bets_json};
@@ -3039,26 +3042,35 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       var user  = getGhUser();
       var token = getGhToken();
       if (!user || !token) return;
-      if (!confirm('Cancel this bet? Your stake will be refunded on the next hourly update.')) return;
+      if (!confirm('Cancel this bet? Your stake will be refunded instantly.')) return;
       btn.disabled = true;
       btn.textContent = 'Cancelling\u2026';
       try {{
-        var parts = issueUrl.split('/');
-        var repo  = parts[parts.length - 3];
-        var owner = parts[parts.length - 4];
-        var r = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/issues/' + issueNumber + '/comments', {{
+        if (!CANCEL_WORKER_URL) throw new Error('Cancel worker not configured');
+        var r = await fetch(CANCEL_WORKER_URL, {{
           method: 'POST',
-          headers: {{ 'Authorization': 'token ' + token, 'Content-Type': 'application/json' }},
-          body: JSON.stringify({{ body: 'cancel' }})
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ token: token, issue_number: issueNumber }})
         }});
-        if (!r.ok) throw new Error('comment failed: ' + r.status);
-        btn.textContent = '\u21a9 Requested';
-        btn.style.borderColor = 'var(--text-muted)';
-        btn.style.color = 'var(--text-muted)';
+        var data = await r.json();
+        if (!r.ok) throw new Error(data.error || r.status);
+        btn.textContent = '\u21a9 Cancelled';
+        btn.style.borderColor = 'var(--green)';
+        btn.style.color = 'var(--green)';
+        // Update displayed balance instantly
+        if (typeof data.new_balance === 'number') {{
+          MEMBER_BRICKS[user.login] = data.new_balance;
+          renderBetAuthBar();
+        }}
+        // Mark bet as cancelled in local data so re-renders reflect it
+        ACTIVE_BETS.forEach(function(b) {{
+          if (b.issue_number === issueNumber) {{ b._pendingCancel = true; }}
+        }});
       }} catch(err) {{
         btn.disabled = false;
         btn.textContent = 'Retry';
         console.error(err);
+        alert('Could not cancel: ' + err.message);
       }}
     }}
 
