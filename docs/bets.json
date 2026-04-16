@@ -2,7 +2,7 @@
   "member_balances": {
     "Janics22": 100.0,
     "ikeerwp": 100.0,
-    "polMarsol": 100.0,
+    "polMarsol": 0.0,
     "MartiFarranC": 100.0,
     "oRioL-04": 100.0,
     "kirklan34": 100.0,
@@ -21,6 +21,24 @@
     "Niltm35": 100.0,
     "espitijungle": 100.0
   },
-  "active_bets": [],
+  "active_bets": [
+    {
+      "issue_number": 1,
+      "issue_url": "https://github.com/polMarsol/first-lego-league-scoreboard/issues/1",
+      "bet_type": "head_to_head",
+      "placed_by": "polMarsol",
+      "stake": 100.0,
+      "odds": 1.37,
+      "potential_payout": 137.0,
+      "deadline": "2026-04-17",
+      "params": {
+        "team_a": "Ferranicu & DanGxG",
+        "team_b": "MireiaTerri & xertrec",
+        "pick": "team_a",
+        "metric": "total"
+      },
+      "placed_at": "2026-04-16T09:20:00.624Z"
+    }
+  ],
   "resolved_bets": []
 }
