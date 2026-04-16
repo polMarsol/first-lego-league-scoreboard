@@ -904,9 +904,18 @@
       font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.06em;
     }
-    .pill-win  { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
-    .pill-loss { background: color-mix(in srgb, var(--red)   18%, transparent); color: var(--red); }
-    .pill-open { background: color-mix(in srgb, var(--gold)  18%, transparent); color: var(--gold); }
+    .pill-win       { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
+    .pill-loss      { background: color-mix(in srgb, var(--red)   18%, transparent); color: var(--red); }
+    .pill-open      { background: color-mix(in srgb, var(--gold)  18%, transparent); color: var(--gold); }
+    .pill-cancelled { background: color-mix(in srgb, var(--text-muted) 18%, transparent); color: var(--text-muted); }
+    .bet-cancel-btn {
+      flex-shrink: 0; padding: 3px 10px; border-radius: 6px;
+      font-size: 0.70rem; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--red); color: var(--red);
+      background: transparent; transition: background 120ms;
+    }
+    .bet-cancel-btn:hover { background: color-mix(in srgb, var(--red) 12%, transparent); }
+    .bet-cancel-btn:disabled { opacity: 0.45; cursor: default; }
     .bet-hist-body { flex: 1; min-width: 0; color: var(--text-secondary); }
     .bet-hist-desc { color: var(--text-primary); font-weight: 500; margin-bottom: 3px; }
     .bet-hist-meta { font-size: 0.72rem; color: var(--text-muted); }
@@ -1264,7 +1273,7 @@
     </div>
 
     <div class="live-row">
-      <span class="updated">Last updated: 2026-04-16 12:35 UTC</span>
+      <span class="updated">Last updated: 2026-04-16 12:42 UTC</span>
       <span class="live-indicator">
         <span class="live-dot"></span>
         Next update in <span id="countdown">--:--</span>
@@ -2350,18 +2359,73 @@
       }
       mine.sort(function(a, b) { return (b.placed_at || '').localeCompare(a.placed_at || ''); });
       el.innerHTML = mine.map(function(b) {
-        var pillCls = b.status === 'open' ? 'pill-open' : b.status === 'win' ? 'pill-win' : 'pill-loss';
-        var pillTxt = b.status === 'open' ? 'Open' : b.status === 'win' ? 'Win' : 'Loss';
-        var payoutStr = b.status === 'win' ? '+' + b.payout.toFixed(2) + ' BRK' : b.status === 'open' ? 'Potential: ' + b.potential_payout.toFixed(2) + ' BRK' : '-' + b.stake.toFixed(2) + ' BRK';
+        var isCancelled = !!b.cancelled;
+        var pillCls = isCancelled ? 'pill-cancelled'
+                    : b.status === 'open' ? 'pill-open'
+                    : b.status === 'win'  ? 'pill-win' : 'pill-loss';
+        var pillTxt = isCancelled ? 'Cancelled'
+                    : b.status === 'open' ? 'Open'
+                    : b.status === 'win'  ? 'Win' : 'Loss';
+        var payoutStr = isCancelled         ? '↩ ' + b.stake.toFixed(2) + ' BRK refunded'
+                      : b.status === 'win'  ? '+' + b.payout.toFixed(2) + ' BRK'
+                      : b.status === 'open' ? 'Potential: ' + b.potential_payout.toFixed(2) + ' BRK'
+                      :                       '-' + b.stake.toFixed(2) + ' BRK';
+
+        // Cancel button: only for open bets >1h before deadline
+        var cancelBtn = '';
+        if (b.status === 'open' && !isCancelled && b.issue_url) {
+          var closeTime = new Date((b.deadline || '2099-01-01') + 'T23:00:00Z');
+          if (new Date() < closeTime) {
+            var btnId = 'cxl-' + b.issue_number;
+            cancelBtn = '<button class="bet-cancel-btn" id="' + btnId + '" ' +
+              'onclick="cancelBet(' + b.issue_number + ',&#39;' + b.issue_url + '&#39;,this)">Cancel</button>';
+          }
+        }
+
         return '<div class="bet-hist-row">' +
           '<span class="bet-status-pill ' + pillCls + '">' + pillTxt + '</span>' +
           '<div class="bet-hist-body">' +
             '<div class="bet-hist-desc">' + betDescription(b) + '</div>' +
-            '<div class="bet-hist-meta">Stake: ' + b.stake.toFixed(2) + ' BRK &middot; Odds: ' + b.odds.toFixed(2) + 'x &middot; Deadline: ' + (b.deadline || '?') + ' &middot; ' + payoutStr + '</div>' +
+            '<div class="bet-hist-meta">' +
+              'Stake: ' + b.stake.toFixed(2) + ' BRK &middot; ' +
+              'Odds: ' + b.odds.toFixed(2) + 'x &middot; ' +
+              '<span style="color:var(--gold)">Closes: ' + (b.deadline || '?') + '</span>' +
+              ' &middot; ' + payoutStr +
+            '</div>' +
           '</div>' +
+          cancelBtn +
           (b.issue_url ? '<a href="' + b.issue_url + '" target="_blank" style="font-size:0.72rem;color:var(--text-muted);text-decoration:none;flex-shrink:0">#' + b.issue_number + '</a>' : '') +
         '</div>';
       }).join('');
+    }
+
+    // ── Cancel Bet ───────────────────────────────────────────────────────────
+
+    async function cancelBet(issueNumber, issueUrl, btn) {
+      var user  = getGhUser();
+      var token = getGhToken();
+      if (!user || !token) return;
+      if (!confirm('Cancel this bet? Your stake will be refunded on the next hourly update.')) return;
+      btn.disabled = true;
+      btn.textContent = 'Cancelling…';
+      try {
+        var parts = issueUrl.split('/');
+        var repo  = parts[parts.length - 3];
+        var owner = parts[parts.length - 4];
+        var r = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/issues/' + issueNumber + '/comments', {
+          method: 'POST',
+          headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: 'cancel' })
+        });
+        if (!r.ok) throw new Error('comment failed: ' + r.status);
+        btn.textContent = '↩ Requested';
+        btn.style.borderColor = 'var(--text-muted)';
+        btn.style.color = 'var(--text-muted)';
+      } catch(err) {
+        btn.disabled = false;
+        btn.textContent = 'Retry';
+        console.error(err);
+      }
     }
 
     // ── Place Bet modal ───────────────────────────────────────────────────────
@@ -2440,7 +2504,11 @@
 
     function calcOdds(betType, params) {
       var HOUSE_EDGE = 0.10;
-      var p = 0.5; // default even odds
+      var K_SCORE    = 5.0;
+      var K_RANK     = 4.0;
+      var p = 0.5;
+
+      function sigmoid(x) { return 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, x)))); }
 
       if (betType === 'over_under') {
         var ts = TEAM_SCORES[params.subject_team];
@@ -2448,27 +2516,17 @@
         var current   = ts[params.metric] || 0;
         var threshold = parseFloat(params.threshold) || 1;
         var ratio     = threshold > 0 ? current / threshold : 1;
-        var pOver;
-        if      (ratio >= 1.3) pOver = 0.88;
-        else if (ratio >= 1.1) pOver = 0.75;
-        else if (ratio >= 0.9) pOver = 0.55;
-        else if (ratio >= 0.7) pOver = 0.35;
-        else if (ratio >= 0.5) pOver = 0.20;
-        else                   pOver = 0.10;
+        var pOver     = sigmoid(K_SCORE * (ratio - 1));
         p = params.direction === 'over' ? pOver : (1 - pOver);
       }
 
       else if (betType === 'rank') {
         var ts = TEAM_SCORES[params.subject_team];
         if (!ts) return 2.0;
-        var cur  = ts.rank || TEAMS.length;
-        var tgt  = parseInt(params.target_rank) || 1;
-        var gap  = params.direction === 'at_or_better' ? cur - tgt : tgt - cur;
-        if      (gap <= 0) p = 0.80;
-        else if (gap === 1) p = 0.45;
-        else if (gap === 2) p = 0.25;
-        else if (gap === 3) p = 0.15;
-        else               p = 0.08;
+        var cur = ts.rank || TEAMS.length;
+        var tgt = parseInt(params.target_rank) || 1;
+        var gap = params.direction === 'at_or_better' ? cur - tgt : tgt - cur;
+        p = sigmoid(-K_RANK * gap / Math.max(TEAMS.length, 1));
       }
 
       else if (betType === 'milestone') {
@@ -2477,11 +2535,7 @@
         var current = ts[params.metric] || 0;
         var target  = parseInt(params.target) || 1;
         var ratio   = target > 0 ? current / target : 1;
-        if      (ratio >= 1.0) p = 0.90;
-        else if (ratio >= 0.8) p = 0.65;
-        else if (ratio >= 0.6) p = 0.45;
-        else if (ratio >= 0.4) p = 0.25;
-        else                   p = 0.12;
+        p = sigmoid(K_SCORE * (ratio - 1));
       }
 
       else if (betType === 'head_to_head') {
@@ -2492,7 +2546,7 @@
         var scA = tsA[key] || 0;
         var scB = tsB[key] || 0;
         var total = scA + scB;
-        var pA  = total > 0 ? scA / total : 0.5;
+        var pA = total > 0 ? scA / total : 0.5;
         p = params.pick === 'team_a' ? pA : (1 - pA);
       }
 
