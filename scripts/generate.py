@@ -11,6 +11,7 @@ Scoring rules:
 
 import json
 import os
+import re
 import sys
 import requests
 from datetime import datetime, timezone
@@ -35,6 +36,17 @@ STORY_POINTS_MAP = {
 }
 
 COIN_LABEL = "\U0001fa99"  # 🪙 — professor's budget label
+SCOREBOARD_REPO = "first-lego-league-scoreboard"  # repo where bet issues are filed
+BRICKS_START = 100.0  # starting Bricks per member
+
+# Lego brick SVG icon (from Downloads/brick.svg — white bg removed, fill→currentColor)
+_BRICK_PATH = "M 934.355469 754.019531 C 952.269531 754.019531 969.730469 755.171875 986.484375 757.339844 L 1188.871094 646.980469 C 1191.320312 609.410156 1218.898438 576.738281 1262.25 553.910156 C 1302.898438 532.5 1358.460938 519.25 1419.289062 519.25 C 1480.121094 519.25 1535.679688 532.5 1576.328125 553.910156 C 1620.148438 576.988281 1647.851562 610.109375 1649.769531 648.199219 L 1849.929688 757.339844 C 1866.679688 755.171875 1884.140625 754.019531 1902.050781 754.019531 C 1962.890625 754.019531 2018.449219 767.269531 2059.101562 788.679688 C 2104.539062 812.609375 2132.648438 847.359375 2132.648438 887.230469 C 2132.648438 888.710938 2132.601562 890.191406 2132.53125 891.660156 L 2132.539062 911.441406 L 2368.941406 1040.339844 C 2377.710938 1044.171875 2383.828125 1052.910156 2383.828125 1063.089844 L 2383.828125 1778.519531 L 2383.75 1778.519531 C 2383.738281 1787.28125 2379.070312 1795.75 2370.851562 1800.230469 L 1431.910156 2312.210938 L 1431.730469 2312.332031 L 1431.710938 2312.34375 L 1431.539062 2312.453125 L 1431.359375 2312.570312 L 1431.171875 2312.6875 L 1430.789062 2312.914062 L 1430.410156 2313.136719 L 1430.398438 2313.136719 L 1430.210938 2313.242188 L 1430.191406 2313.253906 L 1430.019531 2313.351562 L 1429.820312 2313.457031 L 1429.621094 2313.558594 L 1429.601562 2313.574219 L 1429.429688 2313.660156 L 1429.230469 2313.761719 L 1429.03125 2313.859375 L 1428.828125 2313.953125 L 1428.628906 2314.050781 L 1428.570312 2314.074219 L 1428.269531 2314.210938 L 1428.21875 2314.234375 L 1428.011719 2314.324219 L 1427.808594 2314.410156 L 1427.601562 2314.496094 L 1427.390625 2314.578125 L 1427.191406 2314.660156 L 1426.980469 2314.742188 L 1426.769531 2314.820312 L 1426.570312 2314.890625 L 1426.550781 2314.898438 L 1426.339844 2314.972656 L 1426.160156 2315.035156 L 1426.128906 2315.046875 L 1425.921875 2315.113281 L 1425.699219 2315.183594 L 1425.578125 2315.222656 L 1425.558594 2315.226562 L 1425.269531 2315.316406 L 1425.050781 2315.378906 L 1425 2315.394531 L 1424.828125 2315.441406 L 1424.621094 2315.5 L 1424.578125 2315.511719 L 1424.28125 2315.589844 L 1423.921875 2315.675781 L 1423.289062 2315.816406 L 1423.210938 2315.835938 L 1423.058594 2315.863281 L 1422.609375 2315.945312 L 1422.601562 2315.949219 L 1422.160156 2316.023438 L 1421.980469 2316.050781 L 1421.929688 2316.058594 L 1421.378906 2316.136719 L 1421.351562 2316.140625 L 1420.78125 2316.203125 L 1420.738281 2316.210938 L 1420.550781 2316.226562 L 1420.121094 2316.265625 L 1420.089844 2316.269531 L 1419.488281 2316.304688 L 1419.480469 2316.304688 L 1419.390625 2316.308594 L 1418.921875 2316.328125 L 1418.851562 2316.328125 L 1418.800781 2316.332031 L 1418.210938 2316.339844 L 1417.621094 2316.332031 L 1417.570312 2316.328125 L 1417.5 2316.328125 L 1417.03125 2316.308594 L 1416.929688 2316.304688 L 1416.921875 2316.304688 L 1416.320312 2316.269531 L 1416.300781 2316.265625 L 1415.859375 2316.226562 L 1415.671875 2316.210938 L 1415.628906 2316.203125 L 1415.058594 2316.140625 L 1415.03125 2316.136719 L 1414.480469 2316.058594 L 1414.429688 2316.050781 L 1414.25 2316.023438 L 1413.808594 2315.949219 L 1413.800781 2315.945312 L 1413.351562 2315.863281 L 1413.210938 2315.835938 L 1413.121094 2315.816406 L 1412.699219 2315.722656 L 1412.5 2315.675781 L 1412.128906 2315.589844 L 1411.828125 2315.511719 L 1411.800781 2315.5 L 1411.578125 2315.441406 L 1411.410156 2315.394531 L 1411.359375 2315.378906 L 1411.140625 2315.316406 L 1410.929688 2315.253906 L 1410.828125 2315.222656 L 1410.5 2315.113281 L 1410.28125 2315.046875 L 1410.25 2315.035156 L 1410.070312 2314.972656 L 1409.859375 2314.898438 L 1409.839844 2314.890625 L 1409.648438 2314.820312 L 1409.441406 2314.742188 L 1408.808594 2314.496094 L 1408.601562 2314.410156 L 1408.398438 2314.324219 L 1408.191406 2314.234375 L 1408.140625 2314.210938 L 1407.839844 2314.074219 L 1407.789062 2314.050781 L 1407.589844 2313.953125 L 1407.378906 2313.859375 L 1407.191406 2313.761719 L 1406.988281 2313.660156 L 1406.820312 2313.574219 L 1406.789062 2313.558594 L 1406.589844 2313.457031 L 1406.398438 2313.351562 L 1406.21875 2313.253906 L 1406.199219 2313.242188 L 1406.011719 2313.136719 L 1405.628906 2312.914062 L 1405.429688 2312.800781 L 1405.25 2312.6875 L 1405.058594 2312.570312 L 1404.871094 2312.453125 L 1404.699219 2312.34375 L 1404.691406 2312.332031 L 1404.5 2312.210938 L 465.566406 1800.230469 C 457.339844 1795.75 452.671875 1787.28125 452.664062 1778.519531 L 452.578125 1778.519531 L 452.578125 1063.089844 C 452.578125 1052.910156 458.707031 1044.171875 467.472656 1040.339844 L 703.875 911.441406 L 703.886719 891.679688 C 703.808594 890.210938 703.761719 888.71875 703.761719 887.230469 C 703.761719 847.359375 731.871094 812.609375 777.3125 788.679688 C 817.964844 767.269531 873.523438 754.019531 934.355469 754.019531 Z M 2334.210938 1104.78125 L 1443.019531 1590.71875 L 1443.019531 2249.835938 L 2334.210938 1763.890625 Z M 1418.210938 1547.929688 L 2307.378906 1063.089844 L 2132.570312 967.769531 L 2132.601562 1028.5 L 2132.691406 1028.5 C 2132.691406 1068.378906 2104.578125 1103.121094 2059.128906 1127.058594 C 2018.46875 1148.46875 1962.898438 1161.710938 1902.050781 1161.710938 C 1841.210938 1161.710938 1785.628906 1148.46875 1744.980469 1127.050781 C 1699.53125 1103.121094 1671.410156 1068.371094 1671.410156 1028.5 L 1671.511719 1028.5 L 1671.578125 891.679688 C 1671.5 890.210938 1671.460938 888.71875 1671.460938 887.230469 C 1671.460938 847.359375 1699.570312 812.609375 1745.011719 788.679688 C 1755.078125 783.371094 1766.070312 778.570312 1777.828125 774.339844 L 1649.789062 704.519531 L 1649.828125 793.730469 L 1649.929688 793.730469 C 1649.929688 833.609375 1621.820312 868.351562 1576.371094 892.289062 C 1535.710938 913.699219 1480.128906 926.941406 1419.289062 926.941406 C 1358.441406 926.941406 1302.871094 913.699219 1262.210938 892.289062 C 1216.761719 868.351562 1188.648438 833.609375 1188.648438 793.730469 L 1188.75 793.730469 L 1188.789062 703.339844 L 1058.578125 774.339844 C 1070.339844 778.570312 1081.328125 783.371094 1091.398438 788.679688 C 1136.839844 812.609375 1164.949219 847.359375 1164.949219 887.230469 C 1164.949219 888.710938 1164.910156 890.191406 1164.828125 891.660156 L 1164.898438 1028.5 L 1165 1028.5 C 1165 1068.378906 1136.878906 1103.121094 1091.429688 1127.058594 C 1050.769531 1148.46875 995.199219 1161.710938 934.355469 1161.710938 C 873.515625 1161.710938 817.9375 1148.46875 777.28125 1127.050781 C 731.828125 1103.121094 703.714844 1068.371094 703.714844 1028.5 L 703.8125 1028.5 L 703.84375 967.769531 L 529.035156 1063.089844 Z M 1393.390625 1590.71875 L 502.203125 1104.78125 L 502.203125 1763.890625 L 1393.390625 2249.835938 Z M 1649.761719 1163.988281 L 1649.828125 1300.828125 L 1649.929688 1300.828125 C 1649.929688 1340.699219 1621.820312 1375.441406 1576.371094 1399.378906 C 1535.710938 1420.789062 1480.128906 1434.039062 1419.289062 1434.039062 C 1358.441406 1434.039062 1302.871094 1420.789062 1262.210938 1399.378906 C 1216.761719 1375.441406 1188.648438 1340.699219 1188.648438 1300.828125 L 1188.75 1300.828125 L 1188.820312 1164.011719 C 1188.738281 1162.53125 1188.691406 1161.039062 1188.691406 1159.550781 C 1188.691406 1119.679688 1216.800781 1084.941406 1262.25 1061 C 1302.890625 1039.589844 1358.460938 1026.339844 1419.289062 1026.339844 C 1480.121094 1026.339844 1535.679688 1039.589844 1576.328125 1061 C 1621.78125 1084.941406 1649.878906 1119.679688 1649.878906 1159.550781 C 1649.878906 1161.039062 1649.839844 1162.519531 1649.761719 1163.988281 Z M 1238.210938 1243.261719 L 1238.179688 1300.828125 L 1238.28125 1300.828125 C 1238.28125 1320.820312 1256.238281 1340.28125 1285.28125 1355.570312 C 1319.121094 1373.390625 1366.460938 1384.410156 1419.289062 1384.410156 C 1472.121094 1384.410156 1519.460938 1373.390625 1553.300781 1355.570312 C 1582.339844 1340.28125 1600.300781 1320.820312 1600.300781 1300.828125 L 1600.398438 1300.828125 L 1600.371094 1243.261719 C 1593.039062 1248.578125 1585 1253.539062 1576.328125 1258.109375 C 1535.679688 1279.519531 1480.121094 1292.761719 1419.289062 1292.761719 C 1358.460938 1292.761719 1302.898438 1279.519531 1262.25 1258.109375 C 1253.578125 1253.539062 1245.539062 1248.578125 1238.210938 1243.261719 Z M 1553.269531 1104.808594 C 1519.441406 1086.988281 1472.109375 1075.96875 1419.289062 1075.96875 C 1366.46875 1075.96875 1319.140625 1086.988281 1285.308594 1104.808594 C 1256.28125 1120.101562 1238.320312 1139.558594 1238.320312 1159.550781 C 1238.320312 1179.550781 1256.28125 1199 1285.308594 1214.300781 C 1319.140625 1232.121094 1366.46875 1243.140625 1419.289062 1243.140625 C 1472.109375 1243.140625 1519.441406 1232.121094 1553.261719 1214.300781 C 1582.300781 1199 1600.261719 1179.550781 1600.261719 1159.550781 C 1600.261719 1139.558594 1582.300781 1120.101562 1553.269531 1104.808594 Z M 1238.210938 736.171875 L 1238.179688 793.730469 L 1238.28125 793.730469 C 1238.28125 813.730469 1256.238281 833.179688 1285.28125 848.480469 C 1319.121094 866.300781 1366.460938 877.320312 1419.289062 877.320312 C 1472.121094 877.320312 1519.460938 866.289062 1553.300781 848.480469 C 1582.339844 833.179688 1600.300781 813.730469 1600.300781 793.730469 L 1600.398438 793.730469 L 1600.371094 736.171875 C 1593.039062 741.488281 1585 746.449219 1576.328125 751.011719 C 1535.679688 772.429688 1480.121094 785.671875 1419.289062 785.671875 C 1358.460938 785.671875 1302.890625 772.429688 1262.25 751.011719 C 1253.578125 746.449219 1245.539062 741.488281 1238.210938 736.171875 Z M 1553.261719 597.71875 C 1519.441406 579.898438 1472.109375 568.878906 1419.289062 568.878906 C 1366.46875 568.878906 1319.140625 579.898438 1285.308594 597.71875 C 1256.28125 613.011719 1238.320312 632.46875 1238.320312 652.460938 C 1238.320312 672.449219 1256.28125 691.910156 1285.308594 707.199219 C 1319.140625 725.019531 1366.46875 736.039062 1419.289062 736.039062 C 1472.109375 736.039062 1519.441406 725.019531 1553.269531 707.210938 C 1582.300781 691.910156 1600.261719 672.449219 1600.261719 652.460938 C 1600.261719 632.46875 1582.300781 613.011719 1553.261719 597.71875 Z M 1720.96875 970.941406 L 1720.941406 1028.5 L 1721.039062 1028.5 C 1721.039062 1048.488281 1739 1067.949219 1768.039062 1083.238281 C 1801.878906 1101.058594 1849.21875 1112.089844 1902.050781 1112.089844 C 1954.878906 1112.089844 2002.230469 1101.058594 2036.058594 1083.25 C 2065.101562 1067.949219 2083.070312 1048.488281 2083.070312 1028.5 L 2083.171875 1028.5 L 2083.140625 970.941406 C 2075.800781 976.261719 2067.769531 981.21875 2059.101562 985.78125 C 2018.449219 1007.191406 1962.890625 1020.441406 1902.050781 1020.441406 C 1841.21875 1020.441406 1785.660156 1007.191406 1745.011719 985.78125 C 1736.339844 981.21875 1728.300781 976.25 1720.96875 970.941406 Z M 2036.03125 832.488281 C 2002.199219 814.671875 1954.871094 803.648438 1902.050781 803.648438 C 1849.238281 803.648438 1801.910156 814.671875 1768.078125 832.488281 C 1739.039062 847.78125 1721.089844 867.238281 1721.089844 887.230469 C 1721.089844 907.21875 1739.039062 926.679688 1768.078125 941.96875 C 1801.898438 959.789062 1849.238281 970.808594 1902.050781 970.808594 C 1954.871094 970.808594 2002.199219 959.789062 2036.03125 941.96875 C 2065.058594 926.679688 2083.019531 907.21875 2083.019531 887.230469 C 2083.019531 867.238281 2065.058594 847.78125 2036.03125 832.488281 Z M 1115.441406 970.941406 C 1108.109375 976.261719 1100.070312 981.21875 1091.398438 985.78125 C 1050.75 1007.191406 995.191406 1020.441406 934.355469 1020.441406 C 873.523438 1020.441406 817.964844 1007.191406 777.3125 985.78125 C 768.644531 981.21875 760.609375 976.25 753.277344 970.941406 L 753.246094 1028.5 L 753.34375 1028.5 C 753.34375 1048.488281 771.308594 1067.949219 800.347656 1083.238281 C 834.183594 1101.058594 881.527344 1112.089844 934.355469 1112.089844 C 987.1875 1112.089844 1034.53125 1101.058594 1068.371094 1083.25 C 1097.410156 1067.949219 1115.371094 1048.488281 1115.371094 1028.5 L 1115.46875 1028.5 Z M 1068.328125 832.488281 C 1034.511719 814.671875 987.171875 803.648438 934.355469 803.648438 C 881.539062 803.648438 834.210938 814.671875 800.382812 832.488281 C 771.347656 847.78125 753.390625 867.238281 753.390625 887.230469 C 753.390625 907.21875 771.347656 926.679688 800.382812 941.96875 C 834.207031 959.789062 881.539062 970.808594 934.355469 970.808594 C 987.171875 970.808594 1034.511719 959.789062 1068.328125 941.96875 C 1097.371094 926.679688 1115.328125 907.21875 1115.328125 887.230469 C 1115.328125 867.238281 1097.371094 847.78125 1068.328125 832.488281"
+BRICK_ICON = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2836 2836"'
+    ' width="16" height="16" style="flex-shrink:0;display:block">'
+    f'<path fill-rule="nonzero" fill="currentColor" d="{_BRICK_PATH}"/>'
+    '</svg>'
+)
 
 CHART_COLORS = [
     "#2F81F7", "#3FB950", "#D4A017", "#F78166",
@@ -334,9 +346,218 @@ def rank_teams(teams, scores):
         reverse=True,
     )
 
+# ── Betting ──────────────────────────────────────────────────────────────────────
+
+def load_bets(out_dir, teams):
+    """Load docs/bets.json; initialize missing members at BRICKS_START."""
+    path = os.path.join(out_dir, "bets.json")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        data = {"member_balances": {}, "active_bets": [], "resolved_bets": []}
+
+    for team in teams:
+        for member in team["members"]:
+            if member not in data["member_balances"]:
+                data["member_balances"][member] = BRICKS_START
+
+    return data
+
+
+def fetch_bet_issues():
+    """Fetch open issues labeled 'bet' from the scoreboard repo."""
+    url = f"https://api.github.com/repos/{ORG}/{SCOREBOARD_REPO}/issues"
+    bets = []
+    page = 1
+    while True:
+        resp = requests.get(
+            url, headers=HEADERS,
+            params={"labels": "bet", "state": "open", "per_page": 100, "page": page},
+            timeout=15,
+        )
+        if resp.status_code == 404:
+            print("  Note: scoreboard repo or 'bet' label not found — skipping bets")
+            return bets
+        resp.raise_for_status()
+        items = resp.json()
+        if not items:
+            break
+        for issue in items:
+            body = issue.get("body") or ""
+            bet_data = None
+            m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", body, re.DOTALL)
+            if m:
+                try:
+                    bet_data = json.loads(m.group(1))
+                except json.JSONDecodeError:
+                    pass
+            if bet_data is None:
+                try:
+                    bet_data = json.loads(body.strip())
+                except json.JSONDecodeError:
+                    continue
+            bet_data["_issue_number"] = issue["number"]
+            bet_data["_issue_url"] = issue["html_url"]
+            bets.append(bet_data)
+        if len(items) < 100:
+            break
+        page += 1
+    return bets
+
+
+def sync_new_bets(bets_data, bet_issues):
+    """Register new bet issues, deducting stake from placer's balance."""
+    existing_ids = {b["issue_number"] for b in bets_data["active_bets"]}
+    existing_ids |= {b["issue_number"] for b in bets_data["resolved_bets"]}
+
+    for issue in bet_issues:
+        issue_num = issue.get("_issue_number")
+        if issue_num in existing_ids:
+            continue
+
+        placed_by = issue.get("placed_by", "").strip()
+        try:
+            stake = float(issue.get("stake", 0))
+            odds  = float(issue.get("odds", 1.0))
+        except (TypeError, ValueError):
+            continue
+
+        if not placed_by or stake <= 0 or odds < 1.0:
+            continue
+
+        balance = bets_data["member_balances"].get(placed_by, 0)
+        if balance < stake:
+            print(f"  Bet #{issue_num} by {placed_by}: insufficient balance ({balance:.2f} < {stake:.2f}), skipping")
+            continue
+
+        bets_data["member_balances"][placed_by] = round(balance - stake, 2)
+        bets_data["active_bets"].append({
+            "issue_number": issue_num,
+            "issue_url":    issue.get("_issue_url", ""),
+            "bet_type":     issue.get("bet_type", ""),
+            "placed_by":    placed_by,
+            "stake":        stake,
+            "odds":         odds,
+            "potential_payout": round(stake * odds, 2),
+            "deadline":     issue.get("deadline", ""),
+            "params":       issue.get("params", {}),
+            "placed_at":    issue.get("placed_at", datetime.now(timezone.utc).isoformat()),
+        })
+        existing_ids.add(issue_num)
+        print(f"  New bet #{issue_num} by {placed_by}: {stake:.2f} BRK @ {odds:.2f}x")
+
+    return bets_data
+
+
+def _check_bet_condition(bet, teams, scores, ranked):
+    """Return True (win) / False (loss) / None (unknown team) for a bet."""
+    name_to_id = {t["name"]: t["id"] for t in teams}
+
+    def metric(team_id, key):
+        s = scores[team_id]
+        if key == "total":
+            return s["creation"] + s["implementation"]
+        return s.get(key, 0)
+
+    bt     = bet.get("bet_type")
+    params = bet.get("params", {})
+
+    if bt == "over_under":
+        tid = name_to_id.get(params.get("subject_team"))
+        if tid is None: return None
+        current   = metric(tid, params.get("metric", "total"))
+        threshold = float(params.get("threshold", 0))
+        return current > threshold if params.get("direction") == "over" else current < threshold
+
+    if bt == "rank":
+        tid = name_to_id.get(params.get("subject_team"))
+        if tid is None: return None
+        cur_rank    = (ranked.index(tid) + 1) if tid in ranked else len(ranked) + 1
+        target_rank = int(params.get("target_rank", 1))
+        return cur_rank <= target_rank if params.get("direction") == "at_or_better" else cur_rank >= target_rank
+
+    if bt == "milestone":
+        tid = name_to_id.get(params.get("subject_team"))
+        if tid is None: return None
+        current = scores[tid].get(params.get("metric", "issues_created"), 0)
+        return current >= int(params.get("target", 0))
+
+    if bt == "head_to_head":
+        id_a = name_to_id.get(params.get("team_a"))
+        id_b = name_to_id.get(params.get("team_b"))
+        if id_a is None or id_b is None: return None
+        key    = params.get("metric", "total")
+        sc_a   = metric(id_a, key)
+        sc_b   = metric(id_b, key)
+        return sc_a > sc_b if params.get("pick") == "team_a" else sc_b > sc_a
+
+    return None
+
+
+def _close_bet_issue(issue_number, won, payout, odds):
+    """Post a resolution comment and close the bet issue (best-effort)."""
+    if won:
+        body = f"**WIN** \U0001f3c6 — Payout: **+{payout:.2f} BRK** (\u00d7{odds:.2f} odds)"
+    else:
+        body = "**LOSS** \U0001f534 — Stake lost."
+
+    base = f"https://api.github.com/repos/{ORG}/{SCOREBOARD_REPO}/issues/{issue_number}"
+    try:
+        requests.post(base + "/comments", headers=HEADERS, json={"body": body}, timeout=10)
+        requests.patch(base, headers=HEADERS, json={"state": "closed"}, timeout=10)
+    except Exception as exc:
+        print(f"  Warning: could not close bet #{issue_number}: {exc}")
+
+
+def resolve_bets(bets_data, teams, scores, ranked):
+    """Resolve all active bets whose deadline has passed."""
+    today = datetime.now(timezone.utc).date()
+    still_active = []
+
+    for bet in bets_data["active_bets"]:
+        deadline_str = bet.get("deadline", "")
+        try:
+            deadline = datetime.strptime(deadline_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            still_active.append(bet)
+            continue
+
+        if deadline > today:
+            still_active.append(bet)
+            continue
+
+        won = _check_bet_condition(bet, teams, scores, ranked)
+        if won is None:
+            won = False  # unknown condition → loss
+
+        payout = bet["potential_payout"] if won else 0.0
+        if won:
+            old_bal = bets_data["member_balances"].get(bet["placed_by"], 0)
+            bets_data["member_balances"][bet["placed_by"]] = round(old_bal + payout, 2)
+
+        resolved_bet = dict(bet)
+        resolved_bet["won"]         = won
+        resolved_bet["payout"]      = payout
+        resolved_bet["resolved_at"] = datetime.now(timezone.utc).isoformat()
+        bets_data["resolved_bets"].append(resolved_bet)
+
+        _close_bet_issue(bet["issue_number"], won, payout, bet["odds"])
+        print(f"  Resolved bet #{bet['issue_number']}: {'WIN' if won else 'LOSS'} for {bet['placed_by']}")
+
+    bets_data["active_bets"] = still_active
+    return bets_data
+
+
+def save_bets(bets_data, out_dir):
+    """Write docs/bets.json."""
+    path = os.path.join(out_dir, "bets.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(bets_data, f, indent=2)
+
 # ── HTML ────────────────────────────────────────────────────────────────────────
 
-def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail, open_issues):
+def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail, open_issues, bets_data=None):
     rows = ""
     for pos, team_id in enumerate(ranked):
         team     = teams[team_id]
@@ -406,6 +627,26 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     open_issues_json   = json.dumps(open_issues)
     oauth_client_id    = json.dumps(OAUTH_CLIENT_ID)
     oauth_worker_url   = json.dumps(OAUTH_WORKER_URL)
+
+    _bets = bets_data or {"member_balances": {}, "active_bets": [], "resolved_bets": []}
+    member_bricks_json  = json.dumps(_bets["member_balances"])
+    active_bets_json    = json.dumps(_bets["active_bets"])
+    resolved_bets_json  = json.dumps(_bets["resolved_bets"])
+
+    # Build team score snapshot for JS odds calculation
+    team_scores_snapshot = {}
+    for team in teams:
+        s = scores[team["id"]]
+        pos = ranked.index(team["id"]) + 1 if team["id"] in ranked else len(teams)
+        team_scores_snapshot[team["name"]] = {
+            "total": round(s["creation"] + s["implementation"], 2),
+            "creation": round(s["creation"], 2),
+            "implementation": round(s["implementation"], 2),
+            "issues_created": s["issues_created"],
+            "issues_implemented": s["issues_implemented"],
+            "rank": pos,
+        }
+    team_scores_json = json.dumps(team_scores_snapshot)
 
     return f"""<!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -1194,6 +1435,132 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       border-radius: 4px; padding: 2px 8px; font-variant-numeric: tabular-nums;
     }}
 
+    /* ── Betting / Bricks ────────────────────────────────────────── */
+    .bricks-table {{ width: 100%; border-collapse: collapse; font-size: 0.84rem; }}
+    .bricks-table th {{
+      text-align: left; padding: 8px 16px;
+      font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.09em; color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }}
+    .bricks-table th.tr {{ text-align: right; }}
+    .bricks-table td {{
+      padding: 11px 16px; border-bottom: 1px solid var(--border-subtle);
+      vertical-align: middle; color: var(--text-secondary);
+    }}
+    .bricks-table tr:last-child td {{ border-bottom: none; }}
+    .bricks-table tbody tr {{ transition: background 150ms ease; }}
+    .bricks-table tbody tr:hover td {{ background: var(--surface-hover); }}
+    .bricks-table .tr {{ text-align: right; font-variant-numeric: tabular-nums; }}
+    .bricks-bal {{
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.05rem; font-weight: 700;
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+    }}
+    .bricks-bal.zero {{ color: var(--text-muted); }}
+    .bricks-rank {{
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem; font-weight: 700; color: var(--text-muted);
+      min-width: 28px; display: inline-block; text-align: right;
+    }}
+    .bricks-rank.r1 {{ color: var(--gold); }}
+    .bricks-rank.r2 {{ color: var(--silver); }}
+    .bricks-rank.r3 {{ color: var(--bronze); }}
+    .bricks-win  {{ color: var(--green); font-weight: 600; }}
+    .bricks-loss {{ color: var(--red); }}
+    .bricks-scroll {{ flex: 1; overflow-y: auto; }}
+    /* Bet form */
+    .bet-form {{ padding: 16px 20px; flex: 1; overflow-y: auto; }}
+    .bet-field {{
+      margin-bottom: 14px;
+    }}
+    .bet-field label {{
+      display: block; font-size: 0.72rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted); margin-bottom: 5px;
+    }}
+    .bet-input, .bet-select {{
+      width: 100%; padding: 8px 12px;
+      background: var(--surface-hover);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: 'Barlow', sans-serif; font-size: 0.88rem;
+      transition: border-color 150ms ease;
+    }}
+    .bet-input:focus, .bet-select:focus {{
+      outline: none; border-color: var(--accent);
+    }}
+    .bet-row {{ display: flex; gap: 12px; }}
+    .bet-row .bet-field {{ flex: 1; }}
+    .odds-preview {{
+      background: var(--surface-hover);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 18px;
+      margin-top: 4px; margin-bottom: 14px;
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    }}
+    .odds-item {{ display: flex; flex-direction: column; align-items: center; gap: 2px; }}
+    .odds-num {{
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.5rem; font-weight: 700;
+      color: var(--gold); font-variant-numeric: tabular-nums;
+    }}
+    .odds-lbl {{
+      font-size: 0.62rem; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-muted);
+    }}
+    .bet-submit {{
+      width: 100%; padding: 10px;
+      background: var(--gold); color: #000;
+      border: none; border-radius: 7px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem; font-weight: 700; letter-spacing: 0.04em;
+      cursor: pointer; transition: opacity 150ms ease;
+      text-transform: uppercase;
+    }}
+    .bet-submit:hover {{ opacity: 0.88; }}
+    .bet-submit:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; opacity: 1; }}
+    .bet-notice {{
+      font-size: 0.75rem; color: var(--text-muted);
+      margin-top: 8px; text-align: center;
+    }}
+    .bet-tabs {{
+      display: flex; border-bottom: 1px solid var(--border); padding: 0 20px;
+    }}
+    .bet-tab-btn {{
+      padding: 10px 16px;
+      background: transparent; border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-family: 'Barlow', sans-serif;
+      font-size: 0.82rem; font-weight: 600;
+      cursor: pointer;
+      transition: color 150ms ease, border-color 150ms ease;
+      margin-bottom: -1px;
+    }}
+    .bet-tab-btn:hover {{ color: var(--text-primary); }}
+    .bet-tab-btn.active {{ color: var(--gold); border-bottom-color: var(--gold); }}
+    .bets-history-scroll {{ flex: 1; overflow-y: auto; }}
+    .bet-hist-row {{
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 11px 20px; border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.82rem;
+    }}
+    .bet-hist-row:last-child {{ border-bottom: none; }}
+    .bet-status-pill {{
+      flex-shrink: 0; padding: 2px 10px; border-radius: 10px;
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }}
+    .pill-win  {{ background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }}
+    .pill-loss {{ background: color-mix(in srgb, var(--red)   18%, transparent); color: var(--red); }}
+    .pill-open {{ background: color-mix(in srgb, var(--gold)  18%, transparent); color: var(--gold); }}
+    .bet-hist-body {{ flex: 1; min-width: 0; color: var(--text-secondary); }}
+    .bet-hist-desc {{ color: var(--text-primary); font-weight: 500; margin-bottom: 3px; }}
+    .bet-hist-meta {{ font-size: 0.72rem; color: var(--text-muted); }}
+
     @media (max-width: 900px) {{
       .stats {{ grid-template-columns: repeat(3, 1fr); }}  /* already 3, no change needed */
     }}
@@ -1214,6 +1581,9 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         <span class="org">UdL EPS SoftArch Igualada</span>
         <a href="https://firstlegoleague.win" target="_blank" class="site-link">firstlegoleague.win</a>
       </div>
+      <button class="chart-btn" onclick="openBricksLeaderboard()" aria-label="Bricks betting leaderboard" style="color:var(--gold);border-color:var(--gold)">
+        {BRICK_ICON} Bricks
+      </button>
       <button class="chart-btn" onclick="openReserve()" aria-label="Reserve an issue">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
@@ -1409,6 +1779,200 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     </div>
   </div>
 
+  <!-- Bricks Leaderboard modal -->
+  <div id="bricks-modal" class="modal-overlay" onclick="handleBricksOverlayClick(event)">
+    <div class="modal-box" style="max-width:700px">
+      <div class="modal-header">
+        <span class="modal-title" style="display:flex;align-items:center;gap:8px">
+          {BRICK_ICON} Bricks Leaderboard
+        </span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="chart-btn" onclick="openPlaceBet()" style="color:var(--gold);border-color:var(--gold);padding:5px 10px;font-size:0.78rem">
+            + Place Bet
+          </button>
+          <button class="modal-close" onclick="closeBricksLeaderboard()" aria-label="Close">&times;</button>
+        </div>
+      </div>
+      <div class="bet-tabs">
+        <button class="bet-tab-btn active" onclick="switchBricksTab(this,'leaderboard')">Leaderboard</button>
+        <button class="bet-tab-btn" onclick="switchBricksTab(this,'my-bets')">My Bets</button>
+      </div>
+      <div id="bricks-leaderboard-tab" class="bricks-scroll">
+        <table class="bricks-table">
+          <thead><tr>
+            <th style="width:40px">Pos</th>
+            <th>Member</th>
+            <th>Team</th>
+            <th class="tr">Bricks</th>
+            <th class="tr">Bets</th>
+            <th class="tr">Wins</th>
+            <th class="tr">Win%</th>
+            <th class="tr">Net P/L</th>
+          </tr></thead>
+          <tbody id="bricks-tbody"></tbody>
+        </table>
+      </div>
+      <div id="bricks-mybets-tab" class="bets-history-scroll" style="display:none">
+        <div id="my-bets-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Place Bet modal -->
+  <div id="bet-modal" class="modal-overlay" onclick="handleBetOverlayClick(event)">
+    <div class="modal-box" style="max-width:520px">
+      <div class="modal-header">
+        <span class="modal-title">Place a Bet</span>
+        <button class="modal-close" onclick="closePlaceBet()" aria-label="Close">&times;</button>
+      </div>
+      <div class="auth-bar" id="bet-auth-bar"></div>
+      <div class="bet-form" id="bet-form-body">
+        <div class="bet-field">
+          <label>Bet Type</label>
+          <select class="bet-select" id="bet-type" onchange="updateBetForm()">
+            <option value="over_under">Over / Under (score threshold)</option>
+            <option value="rank">Rank Prediction</option>
+            <option value="milestone">Issue Milestone</option>
+            <option value="head_to_head">Head-to-Head</option>
+          </select>
+        </div>
+
+        <!-- over_under fields -->
+        <div id="bf-over-under">
+          <div class="bet-row">
+            <div class="bet-field">
+              <label>Subject Team</label>
+              <select class="bet-select" id="bet-ou-team" onchange="updateOddsPreview()"></select>
+            </div>
+            <div class="bet-field">
+              <label>Metric</label>
+              <select class="bet-select" id="bet-ou-metric" onchange="updateOddsPreview()">
+                <option value="total">Total Score</option>
+                <option value="implementation">Implementation Pts</option>
+                <option value="creation">Creation Pts</option>
+                <option value="issues_implemented">Issues Done</option>
+                <option value="issues_created">Issues Created</option>
+              </select>
+            </div>
+          </div>
+          <div class="bet-row">
+            <div class="bet-field">
+              <label>Direction</label>
+              <select class="bet-select" id="bet-ou-dir" onchange="updateOddsPreview()">
+                <option value="over">Over</option>
+                <option value="under">Under</option>
+              </select>
+            </div>
+            <div class="bet-field">
+              <label>Threshold</label>
+              <input type="number" class="bet-input" id="bet-ou-thresh" step="0.25" min="0" value="15" oninput="updateOddsPreview()">
+            </div>
+          </div>
+        </div>
+
+        <!-- rank fields -->
+        <div id="bf-rank" style="display:none">
+          <div class="bet-row">
+            <div class="bet-field">
+              <label>Subject Team</label>
+              <select class="bet-select" id="bet-rk-team" onchange="updateOddsPreview()"></select>
+            </div>
+            <div class="bet-field">
+              <label>Target Rank</label>
+              <input type="number" class="bet-input" id="bet-rk-rank" min="1" value="1" oninput="updateOddsPreview()">
+            </div>
+          </div>
+          <div class="bet-field">
+            <label>Direction</label>
+            <select class="bet-select" id="bet-rk-dir" onchange="updateOddsPreview()">
+              <option value="at_or_better">At or Better</option>
+              <option value="at_or_worse">At or Worse</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- milestone fields -->
+        <div id="bf-milestone" style="display:none">
+          <div class="bet-row">
+            <div class="bet-field">
+              <label>Subject Team</label>
+              <select class="bet-select" id="bet-ms-team" onchange="updateOddsPreview()"></select>
+            </div>
+            <div class="bet-field">
+              <label>Metric</label>
+              <select class="bet-select" id="bet-ms-metric" onchange="updateOddsPreview()">
+                <option value="issues_created">Issues Created</option>
+                <option value="issues_implemented">Issues Implemented</option>
+              </select>
+            </div>
+          </div>
+          <div class="bet-field">
+            <label>Target Count</label>
+            <input type="number" class="bet-input" id="bet-ms-target" min="1" value="10" oninput="updateOddsPreview()">
+          </div>
+        </div>
+
+        <!-- head_to_head fields -->
+        <div id="bf-h2h" style="display:none">
+          <div class="bet-row">
+            <div class="bet-field">
+              <label>Team A</label>
+              <select class="bet-select" id="bet-h2h-a" onchange="updateOddsPreview()"></select>
+            </div>
+            <div class="bet-field">
+              <label>Team B</label>
+              <select class="bet-select" id="bet-h2h-b" onchange="updateOddsPreview()"></select>
+            </div>
+          </div>
+          <div class="bet-row">
+            <div class="bet-field">
+              <label>I Pick</label>
+              <select class="bet-select" id="bet-h2h-pick">
+                <option value="team_a">Team A wins</option>
+                <option value="team_b">Team B wins</option>
+              </select>
+            </div>
+            <div class="bet-field">
+              <label>Metric</label>
+              <select class="bet-select" id="bet-h2h-metric" onchange="updateOddsPreview()">
+                <option value="total">Total Score</option>
+                <option value="implementation">Implementation Pts</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="bet-field">
+          <label>Deadline</label>
+          <input type="date" class="bet-input" id="bet-deadline">
+        </div>
+
+        <div class="odds-preview" id="odds-preview">
+          <div class="odds-item">
+            <span class="odds-num" id="op-odds">—</span>
+            <span class="odds-lbl">Odds</span>
+          </div>
+          <div class="odds-item">
+            <span class="odds-num" id="op-payout">—</span>
+            <span class="odds-lbl">Potential payout</span>
+          </div>
+          <div class="odds-item">
+            <span class="odds-num" id="op-balance">—</span>
+            <span class="odds-lbl">Your Bricks</span>
+          </div>
+        </div>
+
+        <div class="bet-field">
+          <label>Stake (Bricks)</label>
+          <input type="number" class="bet-input" id="bet-stake" min="1" value="10" oninput="updateOddsPreview()">
+        </div>
+
+        <button class="bet-submit" id="bet-submit-btn" onclick="submitBet()" disabled>Sign in to place bet</button>
+        <div class="bet-notice" id="bet-notice"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Chart modal -->
   <div id="chart-modal" class="modal-overlay" onclick="handleOverlayClick(event)">
     <div class="modal-box">
@@ -1438,14 +2002,20 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
 
   <script>
     // ── Data injected by Python ───────────────────────────────────────────────
-    const ISSUES       = {issues_detail_json};
-    const TEAMS        = {team_names_json};
-    const MEMBERS      = {team_members_json};
-    const COLORS       = {team_colors_json};
-    const OPEN_ISSUES  = {open_issues_json};
-    const ORG          = "UdL-EPS-SoftArch-Igualada";
-    const CLIENT_ID    = {oauth_client_id};
-    const WORKER_URL   = {oauth_worker_url};
+    const ISSUES        = {issues_detail_json};
+    const TEAMS         = {team_names_json};
+    const MEMBERS       = {team_members_json};
+    const COLORS        = {team_colors_json};
+    const OPEN_ISSUES   = {open_issues_json};
+    const ORG           = "UdL-EPS-SoftArch-Igualada";
+    const CLIENT_ID     = {oauth_client_id};
+    const WORKER_URL    = {oauth_worker_url};
+    // Betting data
+    const MEMBER_BRICKS  = {member_bricks_json};
+    const ACTIVE_BETS    = {active_bets_json};
+    const RESOLVED_BETS  = {resolved_bets_json};
+    const TEAM_SCORES    = {team_scores_json};
+    const SCOREBOARD_REPO = "{SCOREBOARD_REPO}";
     // Derive flat chart events from rich issue data
     const RAW = ISSUES.map(e => ({{ date: e.date, team: e.impl_team, score: e.score, sp: e.sp }}));
 
@@ -1778,7 +2348,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     }}
 
     document.addEventListener('keydown', e => {{
-      if (e.key === 'Escape') {{ closeChart(); closeTeamModal(); closeHallOfFame(); }}
+      if (e.key === 'Escape') {{ closeChart(); closeTeamModal(); closeHallOfFame(); closeBricksLeaderboard(); closePlaceBet(); }}
     }});
 
     // ── Hall of Fame ──────────────────────────────────────────────────────────
@@ -1957,11 +2527,11 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
           localStorage.setItem('gh_user', JSON.stringify(user));
         }} catch(e) {{}}
       }}
-      // Reopen reserve modal if that's where login was triggered
-      if (localStorage.getItem('oauth_return') === 'reserve') {{
-        localStorage.removeItem('oauth_return');
-        openReserve();
-      }}
+      // Reopen correct modal based on where login was triggered
+      var ret = localStorage.getItem('oauth_return');
+      localStorage.removeItem('oauth_return');
+      if (ret === 'reserve') openReserve();
+      else if (ret === 'bets') openPlaceBet();
     }}
 
     function openReserve() {{
@@ -2063,6 +2633,403 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       }} catch(err) {{
         btn.disabled = false;
         btn.textContent = 'Retry';
+        console.error(err);
+      }}
+    }}
+
+    // ── Bricks / Betting ─────────────────────────────────────────────────────
+
+    // Build per-member stats from resolved bets
+    function buildMemberStats() {{
+      var stats = {{}};
+      Object.keys(MEMBER_BRICKS).forEach(function(m) {{
+        stats[m] = {{ balance: MEMBER_BRICKS[m], bets: 0, wins: 0, net: 0 }};
+      }});
+      RESOLVED_BETS.forEach(function(b) {{
+        var s = stats[b.placed_by];
+        if (!s) return;
+        s.bets++;
+        s.net -= b.stake;
+        if (b.won) {{ s.wins++; s.net += b.payout; }}
+      }});
+      ACTIVE_BETS.forEach(function(b) {{
+        var s = stats[b.placed_by];
+        if (!s) return;
+        s.bets++;
+      }});
+      return stats;
+    }}
+
+    // Find team name for a member
+    function memberTeam(member) {{
+      return TEAMS.find(function(t) {{
+        return (MEMBERS[t] || []).some(function(m) {{ return m.toLowerCase() === member.toLowerCase(); }});
+      }}) || '—';
+    }}
+
+    var _bricksTab = 'leaderboard';
+
+    function openBricksLeaderboard() {{
+      _bricksTab = 'leaderboard';
+      document.querySelectorAll('#bricks-modal .bet-tab-btn').forEach(function(b, i) {{
+        b.classList.toggle('active', i === 0);
+      }});
+      renderBricksLeaderboard();
+      document.getElementById('bricks-leaderboard-tab').style.display = '';
+      document.getElementById('bricks-mybets-tab').style.display = 'none';
+      document.getElementById('bricks-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }}
+
+    function closeBricksLeaderboard() {{
+      document.getElementById('bricks-modal').classList.remove('open');
+      document.body.style.overflow = '';
+    }}
+
+    function handleBricksOverlayClick(e) {{
+      if (e.target === document.getElementById('bricks-modal')) closeBricksLeaderboard();
+    }}
+
+    function switchBricksTab(btn, tab) {{
+      _bricksTab = tab;
+      document.querySelectorAll('#bricks-modal .bet-tab-btn').forEach(function(b) {{ b.classList.remove('active'); }});
+      btn.classList.add('active');
+      if (tab === 'leaderboard') {{
+        document.getElementById('bricks-leaderboard-tab').style.display = '';
+        document.getElementById('bricks-mybets-tab').style.display = 'none';
+        renderBricksLeaderboard();
+      }} else {{
+        document.getElementById('bricks-leaderboard-tab').style.display = 'none';
+        document.getElementById('bricks-mybets-tab').style.display = '';
+        renderMyBets();
+      }}
+    }}
+
+    function renderBricksLeaderboard() {{
+      var stats  = buildMemberStats();
+      var sorted = Object.keys(stats).sort(function(a, b) {{ return stats[b].balance - stats[a].balance; }});
+      var medals = ['\U0001f947','\U0001f948','\U0001f949'];
+      var tbody = document.getElementById('bricks-tbody');
+      tbody.innerHTML = sorted.map(function(member, idx) {{
+        var s     = stats[member];
+        var rank  = idx + 1;
+        var rkCls = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
+        var team  = memberTeam(member);
+        var winPct = s.bets > 0 ? Math.round(s.wins / s.bets * 100) : 0;
+        var netStr = (s.net >= 0 ? '+' : '') + s.net.toFixed(2);
+        var netCls = s.net > 0 ? 'bricks-win' : s.net < 0 ? 'bricks-loss' : '';
+        return '<tr>' +
+          '<td><span class="bricks-rank ' + rkCls + '">' + (medals[idx] || rank) + '</span></td>' +
+          '<td><span style="display:flex;align-items:center;gap:8px">' +
+            '<img src="https://github.com/' + member + '.png?size=40" width="24" height="24" style="border-radius:50%;border:1px solid var(--border)">' +
+            '<a href="https://github.com/' + member + '" target="_blank" style="color:var(--text-primary);text-decoration:none;font-weight:500">' + member + '</a>' +
+          '</span></td>' +
+          '<td style="color:var(--text-muted);font-size:0.78rem">' + team + '</td>' +
+          '<td class="tr"><span class="bricks-bal' + (s.balance === 0 ? ' zero' : '') + '">' + s.balance.toFixed(2) + ' BRK</span></td>' +
+          '<td class="tr">' + s.bets + '</td>' +
+          '<td class="tr">' + s.wins + '</td>' +
+          '<td class="tr">' + (s.bets > 0 ? winPct + '%' : '—') + '</td>' +
+          '<td class="tr ' + netCls + '">' + (s.bets > 0 ? netStr : '—') + '</td>' +
+        '</tr>';
+      }}).join('');
+    }}
+
+    function betDescription(bet) {{
+      var p = bet.params || {{}};
+      if (bet.bet_type === 'over_under') {{
+        return (p.subject_team || '?') + ' ' + (p.metric || 'total') + ' ' + (p.direction || '') + ' ' + (p.threshold || '');
+      }}
+      if (bet.bet_type === 'rank') {{
+        return (p.subject_team || '?') + ' ' + (p.direction === 'at_or_better' ? '≤' : '≥') + ' rank ' + (p.target_rank || '?');
+      }}
+      if (bet.bet_type === 'milestone') {{
+        return (p.subject_team || '?') + ' ' + (p.metric || '') + ' ≥ ' + (p.target || '');
+      }}
+      if (bet.bet_type === 'head_to_head') {{
+        return (p.pick === 'team_a' ? p.team_a : p.team_b) + ' beats ' + (p.pick === 'team_a' ? p.team_b : p.team_a);
+      }}
+      return bet.bet_type;
+    }}
+
+    function renderMyBets() {{
+      var user = getGhUser();
+      var el   = document.getElementById('my-bets-list');
+      var mine = [];
+      if (user) {{
+        ACTIVE_BETS.forEach(function(b)   {{ if (b.placed_by === user.login) mine.push({{...b, status:'open'}}); }});
+        RESOLVED_BETS.forEach(function(b) {{ if (b.placed_by === user.login) mine.push({{...b, status: b.won ? 'win' : 'loss'}}); }});
+      }}
+      if (!user) {{
+        el.innerHTML = '<div class="reserve-empty">Sign in to see your bets.</div>';
+        return;
+      }}
+      if (!mine.length) {{
+        el.innerHTML = '<div class="reserve-empty">You have no bets yet. Place your first bet!</div>';
+        return;
+      }}
+      mine.sort(function(a, b) {{ return (b.placed_at || '').localeCompare(a.placed_at || ''); }});
+      el.innerHTML = mine.map(function(b) {{
+        var pillCls = b.status === 'open' ? 'pill-open' : b.status === 'win' ? 'pill-win' : 'pill-loss';
+        var pillTxt = b.status === 'open' ? 'Open' : b.status === 'win' ? 'Win' : 'Loss';
+        var payoutStr = b.status === 'win' ? '+' + b.payout.toFixed(2) + ' BRK' : b.status === 'open' ? 'Potential: ' + b.potential_payout.toFixed(2) + ' BRK' : '-' + b.stake.toFixed(2) + ' BRK';
+        return '<div class="bet-hist-row">' +
+          '<span class="bet-status-pill ' + pillCls + '">' + pillTxt + '</span>' +
+          '<div class="bet-hist-body">' +
+            '<div class="bet-hist-desc">' + betDescription(b) + '</div>' +
+            '<div class="bet-hist-meta">Stake: ' + b.stake.toFixed(2) + ' BRK &middot; Odds: ' + b.odds.toFixed(2) + 'x &middot; Deadline: ' + (b.deadline || '?') + ' &middot; ' + payoutStr + '</div>' +
+          '</div>' +
+          (b.issue_url ? '<a href="' + b.issue_url + '" target="_blank" style="font-size:0.72rem;color:var(--text-muted);text-decoration:none;flex-shrink:0">#' + b.issue_number + '</a>' : '') +
+        '</div>';
+      }}).join('');
+    }}
+
+    // ── Place Bet modal ───────────────────────────────────────────────────────
+
+    function openPlaceBet() {{
+      // Populate team selects
+      var opts = TEAMS.map(function(t) {{ return '<option value="' + t + '">' + t + '</option>'; }}).join('');
+      ['bet-ou-team','bet-rk-team','bet-ms-team','bet-h2h-a','bet-h2h-b'].forEach(function(id) {{
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = opts;
+      }});
+      // Set default deadline to 1 week from now
+      var dl = new Date(); dl.setDate(dl.getDate() + 7);
+      document.getElementById('bet-deadline').value = dl.toISOString().slice(0,10);
+      updateBetForm();
+      updateBetAuthBar();
+      document.getElementById('bet-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }}
+
+    function closePlaceBet() {{
+      document.getElementById('bet-modal').classList.remove('open');
+      document.body.style.overflow = '';
+    }}
+
+    function handleBetOverlayClick(e) {{
+      if (e.target === document.getElementById('bet-modal')) closePlaceBet();
+    }}
+
+    function updateBetAuthBar() {{
+      var bar  = document.getElementById('bet-auth-bar');
+      var user = getGhUser();
+      if (user) {{
+        var bal = (MEMBER_BRICKS[user.login] || 0);
+        // Also subtract pending active bets
+        ACTIVE_BETS.forEach(function(b) {{ if (b.placed_by === user.login) bal -= b.stake; }});
+        bar.innerHTML =
+          '<div class="user-pill">' +
+            '<img src="' + user.avatar_url + '" alt="' + user.login + '">' +
+            '<span>Signed in as <strong>' + user.login + '</strong></span>' +
+          '</div>' +
+          '<span style="margin-left:auto;font-size:0.82rem;color:var(--gold);font-weight:600">' + (MEMBER_BRICKS[user.login] || 0).toFixed(2) + ' BRK</span>';
+        document.getElementById('bet-submit-btn').disabled = false;
+        document.getElementById('bet-submit-btn').textContent = 'Place Bet';
+      }} else {{
+        bar.innerHTML =
+          '<span class="auth-notice">Sign in to place bets</span>' +
+          '<button class="gh-login-btn" onclick="loginForBets()" style="margin-left:auto">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px">' +
+              '<path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.268 2.75 1.026A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.026 2.747-1.026.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>' +
+            '</svg>' +
+            'Sign in with GitHub' +
+          '</button>';
+        document.getElementById('bet-submit-btn').disabled = true;
+        document.getElementById('bet-submit-btn').textContent = 'Sign in to place bet';
+      }}
+      updateOddsPreview();
+    }}
+
+    function loginForBets() {{
+      if (!CLIENT_ID) {{ alert('OAuth not configured.'); return; }}
+      var state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      localStorage.setItem('oauth_state', state);
+      localStorage.setItem('oauth_return', 'bets');
+      window.location.href = 'https://github.com/login/oauth/authorize?client_id=' + CLIENT_ID + '&scope=public_repo&state=' + state;
+    }}
+
+    function updateBetForm() {{
+      var type = document.getElementById('bet-type').value;
+      document.getElementById('bf-over-under').style.display = type === 'over_under' ? '' : 'none';
+      document.getElementById('bf-rank').style.display       = type === 'rank'       ? '' : 'none';
+      document.getElementById('bf-milestone').style.display  = type === 'milestone'  ? '' : 'none';
+      document.getElementById('bf-h2h').style.display        = type === 'head_to_head' ? '' : 'none';
+      updateOddsPreview();
+    }}
+
+    function calcOdds(betType, params) {{
+      var HOUSE_EDGE = 0.10;
+      var p = 0.5; // default even odds
+
+      if (betType === 'over_under') {{
+        var ts = TEAM_SCORES[params.subject_team];
+        if (!ts) return 2.0;
+        var current   = ts[params.metric] || 0;
+        var threshold = parseFloat(params.threshold) || 1;
+        var ratio     = threshold > 0 ? current / threshold : 1;
+        var pOver;
+        if      (ratio >= 1.3) pOver = 0.88;
+        else if (ratio >= 1.1) pOver = 0.75;
+        else if (ratio >= 0.9) pOver = 0.55;
+        else if (ratio >= 0.7) pOver = 0.35;
+        else if (ratio >= 0.5) pOver = 0.20;
+        else                   pOver = 0.10;
+        p = params.direction === 'over' ? pOver : (1 - pOver);
+      }}
+
+      else if (betType === 'rank') {{
+        var ts = TEAM_SCORES[params.subject_team];
+        if (!ts) return 2.0;
+        var cur  = ts.rank || TEAMS.length;
+        var tgt  = parseInt(params.target_rank) || 1;
+        var gap  = params.direction === 'at_or_better' ? cur - tgt : tgt - cur;
+        if      (gap <= 0) p = 0.80;
+        else if (gap === 1) p = 0.45;
+        else if (gap === 2) p = 0.25;
+        else if (gap === 3) p = 0.15;
+        else               p = 0.08;
+      }}
+
+      else if (betType === 'milestone') {{
+        var ts = TEAM_SCORES[params.subject_team];
+        if (!ts) return 2.0;
+        var current = ts[params.metric] || 0;
+        var target  = parseInt(params.target) || 1;
+        var ratio   = target > 0 ? current / target : 1;
+        if      (ratio >= 1.0) p = 0.90;
+        else if (ratio >= 0.8) p = 0.65;
+        else if (ratio >= 0.6) p = 0.45;
+        else if (ratio >= 0.4) p = 0.25;
+        else                   p = 0.12;
+      }}
+
+      else if (betType === 'head_to_head') {{
+        var tsA = TEAM_SCORES[params.team_a];
+        var tsB = TEAM_SCORES[params.team_b];
+        if (!tsA || !tsB) return 2.0;
+        var key = params.metric || 'total';
+        var scA = tsA[key] || 0;
+        var scB = tsB[key] || 0;
+        var total = scA + scB;
+        var pA  = total > 0 ? scA / total : 0.5;
+        p = params.pick === 'team_a' ? pA : (1 - pA);
+      }}
+
+      p = Math.max(0.05, Math.min(0.95, p));
+      var raw = (1 / p) * (1 - HOUSE_EDGE);
+      return Math.round(Math.max(1.05, Math.min(9.0, raw)) * 100) / 100;
+    }}
+
+    function currentBetParams() {{
+      var type = document.getElementById('bet-type').value;
+      if (type === 'over_under') {{
+        return {{
+          subject_team: document.getElementById('bet-ou-team').value,
+          metric:       document.getElementById('bet-ou-metric').value,
+          direction:    document.getElementById('bet-ou-dir').value,
+          threshold:    parseFloat(document.getElementById('bet-ou-thresh').value) || 0,
+        }};
+      }}
+      if (type === 'rank') {{
+        return {{
+          subject_team: document.getElementById('bet-rk-team').value,
+          target_rank:  parseInt(document.getElementById('bet-rk-rank').value) || 1,
+          direction:    document.getElementById('bet-rk-dir').value,
+        }};
+      }}
+      if (type === 'milestone') {{
+        return {{
+          subject_team: document.getElementById('bet-ms-team').value,
+          metric:       document.getElementById('bet-ms-metric').value,
+          target:       parseInt(document.getElementById('bet-ms-target').value) || 1,
+        }};
+      }}
+      if (type === 'head_to_head') {{
+        return {{
+          team_a:  document.getElementById('bet-h2h-a').value,
+          team_b:  document.getElementById('bet-h2h-b').value,
+          pick:    document.getElementById('bet-h2h-pick').value,
+          metric:  document.getElementById('bet-h2h-metric').value,
+        }};
+      }}
+      return {{}};
+    }}
+
+    function updateOddsPreview() {{
+      var type   = document.getElementById('bet-type').value;
+      var params = currentBetParams();
+      var odds   = calcOdds(type, params);
+      var stake  = parseFloat(document.getElementById('bet-stake').value) || 0;
+      var payout = Math.round(stake * odds * 100) / 100;
+      document.getElementById('op-odds').textContent   = odds.toFixed(2) + 'x';
+      document.getElementById('op-payout').textContent = payout.toFixed(2) + ' BRK';
+      var user = getGhUser();
+      var bal  = user ? (MEMBER_BRICKS[user.login] || 0) : 0;
+      document.getElementById('op-balance').textContent = user ? bal.toFixed(2) + ' BRK' : '—';
+    }}
+
+    async function submitBet() {{
+      var user  = getGhUser();
+      var token = getGhToken();
+      if (!user || !token) {{ loginForBets(); return; }}
+
+      var type   = document.getElementById('bet-type').value;
+      var params = currentBetParams();
+      var odds   = calcOdds(type, params);
+      var stake  = parseFloat(document.getElementById('bet-stake').value) || 0;
+      var deadline = document.getElementById('bet-deadline').value;
+
+      if (stake <= 0) {{ document.getElementById('bet-notice').textContent = 'Stake must be > 0.'; return; }}
+      var bal = MEMBER_BRICKS[user.login] || 0;
+      if (stake > bal) {{ document.getElementById('bet-notice').textContent = 'Insufficient Bricks (' + bal.toFixed(2) + ' available).'; return; }}
+      if (!deadline) {{ document.getElementById('bet-notice').textContent = 'Set a deadline.'; return; }}
+
+      // Validate head_to_head: team_a != team_b
+      if (type === 'head_to_head' && params.team_a === params.team_b) {{
+        document.getElementById('bet-notice').textContent = 'Team A and Team B must be different.';
+        return;
+      }}
+
+      var betPayload = {{
+        version: 1,
+        bet_type: type,
+        placed_by: user.login,
+        stake: stake,
+        odds: odds,
+        deadline: deadline,
+        placed_at: new Date().toISOString(),
+        params: params,
+      }};
+
+      var desc = betDescription({{bet_type: type, params: params}});
+      var title = '[BET] ' + user.login + ': ' + desc + ' by ' + deadline;
+      var body  = '```json\n' + JSON.stringify(betPayload, null, 2) + '\n```';
+
+      var btn = document.getElementById('bet-submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting\u2026';
+      document.getElementById('bet-notice').textContent = '';
+
+      try {{
+        var r = await fetch('https://api.github.com/repos/' + ORG + '/' + SCOREBOARD_REPO + '/issues', {{
+          method: 'POST',
+          headers: {{ 'Authorization': 'token ' + token, 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ title: title, body: body, labels: ['bet'] }})
+        }});
+        if (!r.ok) {{
+          var err = await r.json();
+          throw new Error(err.message || r.status);
+        }}
+        var issue = await r.json();
+        btn.textContent = '\u2713 Bet placed!';
+        btn.style.background = 'var(--green)';
+        document.getElementById('bet-notice').innerHTML = 'Bet #' + issue.number + ' submitted. ' +
+          'Bricks will be deducted on next hourly update. ' +
+          '<a href="' + issue.html_url + '" target="_blank" style="color:var(--accent)">View issue</a>';
+      }} catch(err) {{
+        btn.disabled = false;
+        btn.textContent = 'Retry';
+        document.getElementById('bet-notice').textContent = 'Error: ' + err.message;
         console.error(err);
       }}
     }}
@@ -2223,9 +3190,17 @@ def main():
     current_positions = {teams[team_id]["name"]: pos + 1 for pos, team_id in enumerate(ranked)}
     save_positions(current_positions, out_dir)
 
+    print("Processing bets...")
+    bets_data = load_bets(out_dir, teams)
+    bet_issues = fetch_bet_issues()
+    print(f"  {len(bet_issues)} pending bet issue(s) found")
+    bets_data = sync_new_bets(bets_data, bet_issues)
+    bets_data = resolve_bets(bets_data, teams, scores, ranked)
+    save_bets(bets_data, out_dir)
+
     issues_detail = build_issues_detail(teams, user_to_team, all_issues)
     generated_at  = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    html = generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail, open_issues)
+    html = generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, prev_positions, issues_detail, open_issues, bets_data)
 
     out_path = os.path.join(out_dir, "index.html")
     with open(out_path, "w", encoding="utf-8") as f:
