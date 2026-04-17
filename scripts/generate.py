@@ -218,7 +218,7 @@ def fetch_project_issues():
                     "creator":   (content.get("author") or {}).get("login") or "",
                 })
 
-            if COIN_LABEL in labels or "inbox" in labels:
+            if COIN_LABEL in labels:
                 coin.append(issue)
 
         if not page_info.get("hasNextPage"):
