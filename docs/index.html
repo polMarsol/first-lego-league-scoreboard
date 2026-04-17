@@ -1273,7 +1273,7 @@
     </div>
 
     <div class="live-row">
-      <span class="updated">Last updated: 2026-04-17 07:33 UTC</span>
+      <span class="updated">Last updated: 2026-04-17 08:34 UTC</span>
       <span class="live-indicator">
         <span class="live-dot"></span>
         Next update in <span id="countdown">--:--</span>
@@ -1999,10 +1999,8 @@
       if (!hof.length) {
         list.innerHTML = '<p class="no-issues">No data yet.</p>';
       } else {
-        var medals = ['🥇', '🥈', '🥉'];
         list.innerHTML = hof.map(function(entry, idx) {
           var isCurrent = entry.week === thisWeek;
-          var medal   = medals[idx] || '';
           var avatars = hofAvatars(entry.winner, 22, 5);
           var others  = entry.all.slice(1).map(function(e) {
             return '<span class="hof-other-pill">' + e[0] + ' &middot; ' + e[1].toFixed(2) + ' pts</span>';
@@ -2013,7 +2011,6 @@
             '</div>' +
             '<div class="hof-wk-body">' +
               '<div class="hof-wk-winner">' +
-                (medal ? '<span style="font-size:1.1rem;line-height:1">' + medal + '</span>' : '') +
                 '<span style="display:flex;gap:3px">' + avatars + '</span>' +
                 '<span class="hof-wk-winner-name">' + entry.winner + '</span>' +
                 '<span class="hof-wk-pts">' + entry.score.toFixed(2) + ' pts</span>' +
