@@ -241,6 +241,12 @@
     .trend-down { color: var(--red); }
     .trend-same { color: var(--text-muted); font-size: 0.7rem; }
     .trend-new  { color: var(--accent); font-size: 0.5rem; }
+    @keyframes rankUpGlow {
+      0%   { background-color: transparent; }
+      20%  { background-color: rgba(80,200,120,0.13); }
+      100% { background-color: transparent; }
+    }
+    .rank-up-flash > td { animation: rankUpGlow 2s ease-out forwards; }
 
     /* Team */
     .col-team { font-weight: 500; }
@@ -1031,7 +1037,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge rank-1">1</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Ferranicu" target="_blank" class="member" aria-label="Ferranicu"><img src="https://github.com/Ferranicu.png?size=56" alt="Ferranicu" class="avatar" width="28" height="28"><span>Ferranicu</span></a><a href="https://github.com/DanGxG" target="_blank" class="member" aria-label="DanGxG"><img src="https://github.com/DanGxG.png?size=56" alt="DanGxG" class="avatar" width="28" height="28"><span>DanGxG</span></a></div></td>
@@ -1054,7 +1060,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge rank-2">2</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/polMarsol" target="_blank" class="member" aria-label="polMarsol"><img src="https://github.com/polMarsol.png?size=56" alt="polMarsol" class="avatar" width="28" height="28"><span>polMarsol</span></a><a href="https://github.com/MartiFarranC" target="_blank" class="member" aria-label="MartiFarranC"><img src="https://github.com/MartiFarranC.png?size=56" alt="MartiFarranC" class="avatar" width="28" height="28"><span>MartiFarranC</span></a></div></td>
@@ -1077,7 +1083,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge rank-3">3</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/oRioL-04" target="_blank" class="member" aria-label="oRioL-04"><img src="https://github.com/oRioL-04.png?size=56" alt="oRioL-04" class="avatar" width="28" height="28"><span>oRioL-04</span></a><a href="https://github.com/kirklan34" target="_blank" class="member" aria-label="kirklan34"><img src="https://github.com/kirklan34.png?size=56" alt="kirklan34" class="avatar" width="28" height="28"><span>kirklan34</span></a></div></td>
@@ -1100,7 +1106,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">4</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Jakub2504" target="_blank" class="member" aria-label="Jakub2504"><img src="https://github.com/Jakub2504.png?size=56" alt="Jakub2504" class="avatar" width="28" height="28"><span>Jakub2504</span></a><a href="https://github.com/Mooliner" target="_blank" class="member" aria-label="Mooliner"><img src="https://github.com/Mooliner.png?size=56" alt="Mooliner" class="avatar" width="28" height="28"><span>Mooliner</span></a></div></td>
@@ -1123,7 +1129,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">5</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/MireiaTerri" target="_blank" class="member" aria-label="MireiaTerri"><img src="https://github.com/MireiaTerri.png?size=56" alt="MireiaTerri" class="avatar" width="28" height="28"><span>MireiaTerri</span></a><a href="https://github.com/xertrec" target="_blank" class="member" aria-label="xertrec"><img src="https://github.com/xertrec.png?size=56" alt="xertrec" class="avatar" width="28" height="28"><span>xertrec</span></a></div></td>
@@ -1146,7 +1152,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">6</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Niltm35" target="_blank" class="member" aria-label="Niltm35"><img src="https://github.com/Niltm35.png?size=56" alt="Niltm35" class="avatar" width="28" height="28"><span>Niltm35</span></a><a href="https://github.com/espitijungle" target="_blank" class="member" aria-label="espitijungle"><img src="https://github.com/espitijungle.png?size=56" alt="espitijungle" class="avatar" width="28" height="28"><span>espitijungle</span></a></div></td>
@@ -1169,7 +1175,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">7</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/IvonneHernan" target="_blank" class="member" aria-label="IvonneHernan"><img src="https://github.com/IvonneHernan.png?size=56" alt="IvonneHernan" class="avatar" width="28" height="28"><span>IvonneHernan</span></a><a href="https://github.com/nigelboada" target="_blank" class="member" aria-label="nigelboada"><img src="https://github.com/nigelboada.png?size=56" alt="nigelboada" class="avatar" width="28" height="28"><span>nigelboada</span></a></div></td>
@@ -1192,7 +1198,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">8</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/xji650" target="_blank" class="member" aria-label="xji650"><img src="https://github.com/xji650.png?size=56" alt="xji650" class="avatar" width="28" height="28"><span>xji650</span></a><a href="https://github.com/xBlanco998" target="_blank" class="member" aria-label="xBlanco998"><img src="https://github.com/xBlanco998.png?size=56" alt="xBlanco998" class="avatar" width="28" height="28"><span>xBlanco998</span></a></div></td>
@@ -1215,7 +1221,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">9</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/Janics22" target="_blank" class="member" aria-label="Janics22"><img src="https://github.com/Janics22.png?size=56" alt="Janics22" class="avatar" width="28" height="28"><span>Janics22</span></a><a href="https://github.com/ikeerwp" target="_blank" class="member" aria-label="ikeerwp"><img src="https://github.com/ikeerwp.png?size=56" alt="ikeerwp" class="avatar" width="28" height="28"><span>ikeerwp</span></a></div></td>
@@ -1238,7 +1244,7 @@
               <td class="col-rank">
                 <div class="rank-cell">
                   <span class="rank-badge ">10</span>
-                  <span class="trend trend-same" aria-label="no change">&mdash;</span>
+                  <span class="trend trend-new" aria-label="new">&#x2022;</span>
                 </div>
               </td>
               <td class="col-team"><div class="team-members"><a href="https://github.com/cesar606" target="_blank" class="member" aria-label="cesar606"><img src="https://github.com/cesar606.png?size=56" alt="cesar606" class="avatar" width="28" height="28"><span>cesar606</span></a><a href="https://github.com/mikaropa11" target="_blank" class="member" aria-label="mikaropa11"><img src="https://github.com/mikaropa11.png?size=56" alt="mikaropa11" class="avatar" width="28" height="28"><span>mikaropa11</span></a></div></td>
@@ -1273,7 +1279,7 @@
     </div>
 
     <div class="live-row">
-      <span class="updated">Last updated: 2026-04-17 08:37 UTC</span>
+      <span class="updated">Last updated: 2026-04-17 09:09 UTC</span>
       <span class="live-indicator">
         <span class="live-dot"></span>
         Next update in <span id="countdown">--:--</span>
@@ -2764,63 +2770,184 @@
       resize();
       window.addEventListener('resize', resize);
 
-      // Star colors: white, pale blue, pale yellow, pale violet
-      var starColors = [
-        '255,255,255', '200,220,255', '255,240,180', '180,180,255', '220,255,220'
+      var starColors = ['255,255,255', '200,220,255', '255,240,180', '180,180,255', '220,255,220'];
+
+      // 3 parallax layers: far (slow/small), mid, near (fast/large)
+      var layerDefs = [
+        { count: 80, baseSpeed: 0.22, sizeMin: 0.15, sizeMax: 0.55, opMax: 0.38, pFactor: 0.012 },
+        { count: 60, baseSpeed: 0.55, sizeMin: 0.45, sizeMax: 1.0,  opMax: 0.55, pFactor: 0.038 },
+        { count: 35, baseSpeed: 1.1,  sizeMin: 0.8,  sizeMax: 1.8,  opMax: 0.72, pFactor: 0.08  },
       ];
+
       var pts = [];
-      for (var i = 0; i < 180; i++) {
-        var big = Math.random() < 0.12; // 12% are slightly bigger "bright stars"
-        pts.push({
-          x:    Math.random() * window.innerWidth,
-          y:    Math.random() * window.innerHeight,
-          r:    big ? Math.random() * 1.2 + 0.9 : Math.random() * 0.7 + 0.2,
-          vx:   (Math.random() - 0.5) * 0.12,
-          vy:   -(Math.random() * 0.08 + 0.02),
-          o:    Math.random() * 0.45 + 0.1,
-          oBase:0,           // set below
-          oAmp: big ? 0.25 : Math.random() * 0.15, // twinkle amplitude
-          oSpd: Math.random() * 0.02 + 0.005,      // twinkle speed
-          oPhase: Math.random() * Math.PI * 2,
-          col:  starColors[Math.floor(Math.random() * starColors.length)]
+      layerDefs.forEach(function (ld, li) {
+        for (var i = 0; i < ld.count; i++) {
+          var big = Math.random() < 0.1;
+          var oBase = Math.random() * (ld.opMax * 0.55) + ld.opMax * 0.2;
+          pts.push({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            r: Math.random() * (ld.sizeMax - ld.sizeMin) + ld.sizeMin,
+            speed: ld.baseSpeed * (0.7 + Math.random() * 0.6),
+            oBase: oBase,
+            oAmp:  big ? 0.18 : Math.random() * 0.11,
+            oSpd:  Math.random() * 0.02 + 0.005,
+            oPhase: Math.random() * Math.PI * 2,
+            col: starColors[Math.floor(Math.random() * starColors.length)],
+            pFactor: ld.pFactor,
+          });
+        }
+      });
+
+      // ── Shooting stars ────────────────────────────────────────────────────
+      var shoots = [];
+      var nextShoot = Date.now() + 3000 + Math.random() * 4000;
+
+      function spawnShoot () {
+        var angle = 0.38 + Math.random() * 0.35; // ~22–42° from horizontal
+        var spd   = 9 + Math.random() * 7;
+        shoots.push({
+          x:     Math.random() * cvs.width * 0.65,
+          y:     Math.random() * cvs.height * 0.35,
+          vx:    Math.cos(angle) * spd,
+          vy:    Math.sin(angle) * spd,
+          len:   70 + Math.random() * 70,
+          life:  1.0,
+          decay: 0.018 + Math.random() * 0.014,
         });
-        pts[pts.length-1].oBase = pts[pts.length-1].o;
       }
 
-      // ── Shared animation loop ─────────────────────────────────────────────
-      function loop() {
+      // ── Warp on click ─────────────────────────────────────────────────────
+      var warp = 0;
+      document.addEventListener('click', function () { warp = 1.0; });
+
+      // ── Animation loop ────────────────────────────────────────────────────
+      function loop () {
         var dark = document.documentElement.getAttribute('data-theme') !== 'light';
 
-        // Cursor glow — smooth lerp follow
+        var cx = cvs.width  / 2;
+        var cy = cvs.height / 2;
+        var dx = mx - cx, dy = my - cy;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        var influence = Math.min(dist / (Math.min(cvs.width, cvs.height) * 0.45), 1.0) * 0.65;
+        var ndx = (dx / dist) * influence; // normalized steering X
+        var ndy = (dy / dist) * influence; // normalized steering Y
+
+        // Cursor glow
         gx += (mx - gx) * 0.07;
         gy += (my - gy) * 0.07;
         glow.style.left    = gx + 'px';
         glow.style.top     = gy + 'px';
         glow.style.opacity = dark && inside ? '1' : '0';
 
-        // Particles — only in dark mode
+        if (warp > 0) warp = Math.max(0, warp - 0.028);
+
         pc.clearRect(0, 0, cvs.width, cvs.height);
+
         if (dark) {
+          var warpBoost = 1 + warp * 9;
+
           for (var j = 0; j < pts.length; j++) {
             var p = pts[j];
-            // Twinkle: oscillate opacity around base
             p.oPhase += p.oSpd;
             var alpha = p.oBase + Math.sin(p.oPhase) * p.oAmp;
             if (alpha < 0) alpha = 0;
+
+            // Mouse steering: near layer reacts more than far
+            var svx = ndx * p.speed * p.pFactor * 35;
+            var svy = ndy * p.speed * p.pFactor * 35;
+            var tvx = svx;
+            var tvy = -p.speed + svy;
+
+            if (warp > 0.05) {
+              var stretch = warp * 14;
+              var sx = p.x - tvx * stretch;
+              var sy = p.y - tvy * stretch;
+              var grd = pc.createLinearGradient(p.x, p.y, sx, sy);
+              grd.addColorStop(0, 'rgba(' + p.col + ',' + (alpha * (0.5 + warp * 0.5)) + ')');
+              grd.addColorStop(1, 'rgba(' + p.col + ',0)');
+              pc.beginPath();
+              pc.moveTo(p.x, p.y);
+              pc.lineTo(sx, sy);
+              pc.strokeStyle = grd;
+              pc.lineWidth = p.r * (1 + warp * 2.5);
+              pc.stroke();
+            } else {
+              pc.beginPath();
+              pc.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+              pc.fillStyle = 'rgba(' + p.col + ',' + alpha + ')';
+              pc.fill();
+            }
+
+            p.x += tvx * warpBoost;
+            p.y += tvy * warpBoost;
+            if (p.y < -4) { p.y = cvs.height + 4; p.x = Math.random() * cvs.width; }
+            if (p.x < -4) p.x = cvs.width  + 4;
+            if (p.x > cvs.width + 4) p.x = -4;
+          }
+
+          // Shooting stars
+          var now = Date.now();
+          if (now >= nextShoot) {
+            spawnShoot();
+            nextShoot = now + 4000 + Math.random() * 5000;
+          }
+          for (var s = shoots.length - 1; s >= 0; s--) {
+            var sh = shoots[s];
+            sh.life -= sh.decay;
+            if (sh.life <= 0) { shoots.splice(s, 1); continue; }
+            var spd2  = Math.sqrt(sh.vx * sh.vx + sh.vy * sh.vy) || 1;
+            var tailX = sh.x - sh.vx / spd2 * sh.len;
+            var tailY = sh.y - sh.vy / spd2 * sh.len;
+            var sg = pc.createLinearGradient(sh.x, sh.y, tailX, tailY);
+            sg.addColorStop(0, 'rgba(255,255,255,' + (sh.life * 0.95) + ')');
+            sg.addColorStop(0.25, 'rgba(200,220,255,' + (sh.life * 0.55) + ')');
+            sg.addColorStop(1, 'rgba(200,220,255,0)');
             pc.beginPath();
-            pc.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            pc.fillStyle = 'rgba(' + p.col + ',' + alpha + ')';
-            pc.fill();
-            p.x += p.vx; p.y += p.vy;
-            if (p.y < -3) { p.y = cvs.height + 3; p.x = Math.random() * cvs.width; }
-            if (p.x < -3) p.x = cvs.width  + 3;
-            if (p.x > cvs.width + 3) p.x = -3;
+            pc.moveTo(sh.x, sh.y);
+            pc.lineTo(tailX, tailY);
+            pc.strokeStyle = sg;
+            pc.lineWidth = 1.5;
+            pc.stroke();
+            sh.x += sh.vx;
+            sh.y += sh.vy;
+            if (sh.x > cvs.width + 120 || sh.y > cvs.height + 120) {
+              shoots.splice(s, 1);
+            }
           }
         }
 
         requestAnimationFrame(loop);
       }
       loop();
+
+      // ── Score counter animation ───────────────────────────────────────────
+      setTimeout(function () {
+        var targets = document.querySelectorAll('.pts-value, td.col-total');
+        targets.forEach(function (el) {
+          var raw = parseFloat(el.textContent);
+          if (isNaN(raw) || raw === 0) return;
+          var dur = 750, t0 = null;
+          function step (ts) {
+            if (!t0) t0 = ts;
+            var pct = Math.min((ts - t0) / dur, 1);
+            var ease = 1 - Math.pow(1 - pct, 3);
+            el.textContent = (raw * ease).toFixed(2);
+            if (pct < 1) requestAnimationFrame(step);
+            else el.textContent = raw.toFixed(2);
+          }
+          requestAnimationFrame(step);
+        });
+      }, 120);
+
+      // ── Rank-up glow ──────────────────────────────────────────────────────
+      setTimeout(function () {
+        document.querySelectorAll('.trend-up').forEach(function (el) {
+          var row = el.closest('tr');
+          if (row) row.classList.add('rank-up-flash');
+        });
+      }, 300);
+
     })();
   </script>
 </body>
