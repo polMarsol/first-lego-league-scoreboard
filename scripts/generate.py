@@ -3602,7 +3602,32 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       }}).join('');
     }}
 
-    function createSuggestedIssue(idx) {{
+    var _tplCache = {{}};
+
+    async function _getTemplate(repo, type) {{
+      if (_tplCache[repo] !== undefined) return _tplCache[repo][type] || null;
+      try {{
+        var r = await fetch('https://api.github.com/repos/' + ORG + '/' + repo + '/contents/.github/ISSUE_TEMPLATE', {{
+          headers: {{ 'Authorization': 'token ' + getGhToken() }}
+        }});
+        if (!r.ok) {{ _tplCache[repo] = {{}}; return null; }}
+        var files = await r.json();
+        var map = {{}};
+        (Array.isArray(files) ? files : []).forEach(function(f) {{
+          var key = f.name.toLowerCase().replace(/\.(yml|yaml|md)$/, '');
+          map[key] = f.name;
+        }});
+        _tplCache[repo] = map;
+        // Partial match: find a key that contains the type name (handles "1-feature.yml" → "feature")
+        var keys = Object.keys(map);
+        for (var i = 0; i < keys.length; i++) {{
+          if (keys[i].indexOf(type) !== -1) return map[keys[i]];
+        }}
+        return null;
+      }} catch(e) {{ _tplCache[repo] = {{}}; return null; }}
+    }}
+
+    async function createSuggestedIssue(idx) {{
       var issue = suggestIssues[idx];
       var repo  = document.getElementById('suggest-repo-' + idx).value;
       if (!repo) {{ alert('Select a repo first'); return; }}
@@ -3618,11 +3643,32 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         '## Definition of done\\n' + (doneLines || '- TBD') + '\\n\\n' +
         '## Time estimation\\n' + spVal + ' story points (' + spHours + ')';
 
-      // Open GitHub's issue creation form with pre-filled title + body.
-      // Labels and issue type are applied by the repo template/bot — no API permission needed.
-      var url = 'https://github.com/' + ORG + '/' + repo + '/issues/new' +
-        '?title=' + encodeURIComponent(issue.title) +
-        '&body='  + encodeURIComponent(body);
+      // Map issue type to likely template filename (feature, bug, refactor)
+      var typeKey = (issue.type || 'feature').toLowerCase().replace('refactor', 'refactor');
+      var tplFile = await _getTemplate(repo, typeKey);
+
+      var url;
+      if (tplFile) {{
+        // Template found: use it (applies inbox/🪙/type labels automatically)
+        // Body goes to clipboard so user can paste into the form
+        url = 'https://github.com/' + ORG + '/' + repo + '/issues/new' +
+          '?template=' + encodeURIComponent(tplFile) +
+          '&title='    + encodeURIComponent(issue.title);
+        try {{ await navigator.clipboard.writeText(body); }} catch(e) {{}}
+        // Show hint in modal
+        var hint = document.getElementById('suggest-hint');
+        hint.style.color = 'var(--green)';
+        hint.textContent = '📋 Body copied to clipboard — paste it in the GitHub form';
+        setTimeout(function() {{
+          hint.style.color = '';
+          hint.textContent = 'Powered by GitHub Models (gpt-4o-mini) · Free with your GitHub account';
+        }}, 5000);
+      }} else {{
+        // No template found: fall back to pre-filled body (no automatic labels)
+        url = 'https://github.com/' + ORG + '/' + repo + '/issues/new' +
+          '?title=' + encodeURIComponent(issue.title) +
+          '&body='  + encodeURIComponent(body);
+      }}
       window.open(url, '_blank');
     }}
 
