@@ -227,7 +227,64 @@ def fetch_project_issues():
 
     # Sort open issues: unassigned first, then by SP descending
     open_issues.sort(key=lambda i: (len(i["assignees"]) > 0, -i["sp"]))
+
+    # Also fetch 🪙-labeled issues from org repos that are NOT in the project (inbox)
+    coin = _merge_inbox_coin_issues(coin)
+
     return done, coin, open_issues
+
+
+def _merge_inbox_coin_issues(project_coin):
+    """Fetch all 🪙-labeled open issues from the org via Search API and merge with
+    project coin issues.  Inbox issues (not yet added to the project) are excluded
+    from the project query above but still count toward budget."""
+    seen = {(i["repo"], i["number"]) for i in project_coin}
+    merged = list(project_coin)
+
+    url = "https://api.github.com/search/issues"
+    page = 1
+    while True:
+        resp = requests.get(
+            url, headers=HEADERS,
+            params={
+                "q": f"org:{ORG} label:{COIN_LABEL} is:open is:issue",
+                "per_page": 100,
+                "page": page,
+            },
+            timeout=15,
+        )
+        if resp.status_code in (422, 404):
+            break
+        resp.raise_for_status()
+        data = resp.json()
+        items = data.get("items", [])
+        if not items:
+            break
+        for issue in items:
+            repo = (issue.get("repository_url") or "").split("/")[-1]
+            number = issue["number"]
+            if (repo, number) in seen:
+                continue  # already captured via project query
+            labels = [lb["name"] for lb in issue.get("labels", [])]
+            sp = next((STORY_POINTS_MAP[lb] for lb in labels if lb in STORY_POINTS_MAP), None)
+            if sp is None:
+                continue
+            seen.add((repo, number))
+            merged.append({
+                "number":       number,
+                "title":        issue["title"],
+                "repo":         repo,
+                "creator":      (issue.get("user") or {}).get("login"),
+                "assignees":    [a["login"] for a in issue.get("assignees", [])],
+                "story_points": sp,
+                "closed_at":    "",
+                "closer":       "",
+            })
+        if len(items) < 100:
+            break
+        page += 1
+
+    return merged
 
 # ── Scoring ─────────────────────────────────────────────────────────────────────
 
