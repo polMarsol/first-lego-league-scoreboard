@@ -3596,27 +3596,19 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
           (donePreview ? '<div style="font-size:0.73rem;color:var(--green);line-height:1.6;margin-bottom:6px">' + donePreview + '</div>' : '') +
           '<div class="suggest-card-footer">' +
             '<select class="suggest-repo-select" id="suggest-repo-' + idx + '">' + repoOpts + '</select>' +
-            '<button class="suggest-create-btn" id="suggest-create-' + idx + '" onclick="createSuggestedIssue(' + idx + ')">+ Create</button>' +
+            '<button class="suggest-create-btn" onclick="createSuggestedIssue(' + idx + ')">Open in GitHub ↗</button>' +
           '</div>' +
         '</div>';
       }}).join('');
     }}
 
-    async function createSuggestedIssue(idx) {{
-      var token = getGhToken();
-      if (!token) return;
-      var issue  = suggestIssues[idx];
-      var repo   = document.getElementById('suggest-repo-' + idx).value;
+    function createSuggestedIssue(idx) {{
+      var issue = suggestIssues[idx];
+      var repo  = document.getElementById('suggest-repo-' + idx).value;
       if (!repo) {{ alert('Select a repo first'); return; }}
-      var btn = document.getElementById('suggest-create-' + idx);
-      btn.disabled = true;
-      btn.textContent = '…';
 
-      // Build body matching the project's required issue format
-      var spVal  = issue.story_points;
-      var spLabel = 'story-points-' + String(spVal).replace('.', '_');
+      var spVal   = issue.story_points;
       var spHours = spVal < 1 ? (spVal * 60) + ' minutes' : spVal + (spVal === 1 ? ' hour' : ' hours');
-
       var needLines = (issue.we_need_to || []).map(function(l) {{ return '- ' + l; }}).join('\\n');
       var doneLines = (issue.definition_of_done || []).map(function(l) {{ return '- ' + l; }}).join('\\n');
 
@@ -3626,28 +3618,12 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         '## Definition of done\\n' + (doneLines || '- TBD') + '\\n\\n' +
         '## Time estimation\\n' + spVal + ' story points (' + spHours + ')';
 
-      var labels = ['inbox', '\\uD83E\\uFA99', spLabel];
-      if (issue.type) labels.push(issue.type);
-
-      try {{
-        var r = await fetch('https://api.github.com/repos/' + ORG + '/' + repo + '/issues', {{
-          method: 'POST',
-          headers: {{ 'Authorization': 'token ' + token, 'Content-Type': 'application/json' }},
-          body: JSON.stringify({{ title: issue.title, body: body, labels: labels }})
-        }});
-        if (!r.ok) {{
-          var e = await r.json();
-          throw new Error(e.message || r.status);
-        }}
-        var created = await r.json();
-        btn.textContent = '✓ Created';
-        btn.style.background = 'var(--accent)';
-        btn.onclick = function() {{ window.open(created.html_url, '_blank'); }};
-      }} catch(err) {{
-        btn.disabled = false;
-        btn.textContent = 'Retry';
-        alert('Error creating issue: ' + err.message);
-      }}
+      // Open GitHub's issue creation form with pre-filled title + body.
+      // Labels and issue type are applied by the repo template/bot — no API permission needed.
+      var url = 'https://github.com/' + ORG + '/' + repo + '/issues/new' +
+        '?title=' + encodeURIComponent(issue.title) +
+        '&body='  + encodeURIComponent(body);
+      window.open(url, '_blank');
     }}
 
     function escHtml(s) {{
