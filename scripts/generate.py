@@ -335,6 +335,29 @@ def load_previous_positions(out_dir):
             return json.load(f)
     return {}
 
+def load_daily_positions(out_dir):
+    """Load start-of-day positions. Returns {} if file missing or date stale."""
+    path = os.path.join(out_dir, "positions_daily.json")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if data.get("date") == today:
+            return data.get("positions", {})
+    return {}
+
+def save_daily_positions(positions, out_dir):
+    """Save daily baseline — only writes once per UTC day."""
+    path = os.path.join(out_dir, "positions_daily.json")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if data.get("date") == today:
+            return
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"date": today, "positions": positions}, f, indent=2)
+
 def save_positions(positions, out_dir):
     """Persist current team positions to positions.json."""
     path = os.path.join(out_dir, "positions.json")
@@ -1107,6 +1130,12 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     .trend-down {{ color: var(--red); }}
     .trend-same {{ color: var(--text-muted); font-size: 0.7rem; }}
     .trend-new  {{ color: var(--accent); font-size: 0.5rem; }}
+    @keyframes rankUpGlow {{
+      0%   {{ background-color: transparent; }}
+      20%  {{ background-color: rgba(80,200,120,0.13); }}
+      100% {{ background-color: transparent; }}
+    }}
+    .rank-up-flash > td {{ animation: rankUpGlow 2s ease-out forwards; }}
 
     /* Team */
     .col-team {{ font-weight: 500; }}
@@ -3400,63 +3429,184 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       resize();
       window.addEventListener('resize', resize);
 
-      // Star colors: white, pale blue, pale yellow, pale violet
-      var starColors = [
-        '255,255,255', '200,220,255', '255,240,180', '180,180,255', '220,255,220'
+      var starColors = ['255,255,255', '200,220,255', '255,240,180', '180,180,255', '220,255,220'];
+
+      // 3 parallax layers: far (slow/small), mid, near (fast/large)
+      var layerDefs = [
+        {{ count: 80, baseSpeed: 0.22, sizeMin: 0.15, sizeMax: 0.55, opMax: 0.38, pFactor: 0.012 }},
+        {{ count: 60, baseSpeed: 0.55, sizeMin: 0.45, sizeMax: 1.0,  opMax: 0.55, pFactor: 0.038 }},
+        {{ count: 35, baseSpeed: 1.1,  sizeMin: 0.8,  sizeMax: 1.8,  opMax: 0.72, pFactor: 0.08  }},
       ];
+
       var pts = [];
-      for (var i = 0; i < 180; i++) {{
-        var big = Math.random() < 0.12; // 12% are slightly bigger "bright stars"
-        pts.push({{
-          x:    Math.random() * window.innerWidth,
-          y:    Math.random() * window.innerHeight,
-          r:    big ? Math.random() * 1.2 + 0.9 : Math.random() * 0.7 + 0.2,
-          vx:   (Math.random() - 0.5) * 0.12,
-          vy:   -(Math.random() * 0.08 + 0.02),
-          o:    Math.random() * 0.45 + 0.1,
-          oBase:0,           // set below
-          oAmp: big ? 0.25 : Math.random() * 0.15, // twinkle amplitude
-          oSpd: Math.random() * 0.02 + 0.005,      // twinkle speed
-          oPhase: Math.random() * Math.PI * 2,
-          col:  starColors[Math.floor(Math.random() * starColors.length)]
+      layerDefs.forEach(function (ld, li) {{
+        for (var i = 0; i < ld.count; i++) {{
+          var big = Math.random() < 0.1;
+          var oBase = Math.random() * (ld.opMax * 0.55) + ld.opMax * 0.2;
+          pts.push({{
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            r: Math.random() * (ld.sizeMax - ld.sizeMin) + ld.sizeMin,
+            speed: ld.baseSpeed * (0.7 + Math.random() * 0.6),
+            oBase: oBase,
+            oAmp:  big ? 0.18 : Math.random() * 0.11,
+            oSpd:  Math.random() * 0.02 + 0.005,
+            oPhase: Math.random() * Math.PI * 2,
+            col: starColors[Math.floor(Math.random() * starColors.length)],
+            pFactor: ld.pFactor,
+          }});
+        }}
+      }});
+
+      // ── Shooting stars ────────────────────────────────────────────────────
+      var shoots = [];
+      var nextShoot = Date.now() + 3000 + Math.random() * 4000;
+
+      function spawnShoot () {{
+        var angle = 0.38 + Math.random() * 0.35; // ~22–42° from horizontal
+        var spd   = 9 + Math.random() * 7;
+        shoots.push({{
+          x:     Math.random() * cvs.width * 0.65,
+          y:     Math.random() * cvs.height * 0.35,
+          vx:    Math.cos(angle) * spd,
+          vy:    Math.sin(angle) * spd,
+          len:   70 + Math.random() * 70,
+          life:  1.0,
+          decay: 0.018 + Math.random() * 0.014,
         }});
-        pts[pts.length-1].oBase = pts[pts.length-1].o;
       }}
 
-      // ── Shared animation loop ─────────────────────────────────────────────
-      function loop() {{
+      // ── Warp on click ─────────────────────────────────────────────────────
+      var warp = 0;
+      document.addEventListener('click', function () {{ warp = 1.0; }});
+
+      // ── Animation loop ────────────────────────────────────────────────────
+      function loop () {{
         var dark = document.documentElement.getAttribute('data-theme') !== 'light';
 
-        // Cursor glow — smooth lerp follow
+        var cx = cvs.width  / 2;
+        var cy = cvs.height / 2;
+        var dx = mx - cx, dy = my - cy;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        var influence = Math.min(dist / (Math.min(cvs.width, cvs.height) * 0.45), 1.0) * 0.65;
+        var ndx = (dx / dist) * influence; // normalized steering X
+        var ndy = (dy / dist) * influence; // normalized steering Y
+
+        // Cursor glow
         gx += (mx - gx) * 0.07;
         gy += (my - gy) * 0.07;
         glow.style.left    = gx + 'px';
         glow.style.top     = gy + 'px';
         glow.style.opacity = dark && inside ? '1' : '0';
 
-        // Particles — only in dark mode
+        if (warp > 0) warp = Math.max(0, warp - 0.028);
+
         pc.clearRect(0, 0, cvs.width, cvs.height);
+
         if (dark) {{
+          var warpBoost = 1 + warp * 9;
+
           for (var j = 0; j < pts.length; j++) {{
             var p = pts[j];
-            // Twinkle: oscillate opacity around base
             p.oPhase += p.oSpd;
             var alpha = p.oBase + Math.sin(p.oPhase) * p.oAmp;
             if (alpha < 0) alpha = 0;
+
+            // Mouse steering: near layer reacts more than far
+            var svx = ndx * p.speed * p.pFactor * 35;
+            var svy = ndy * p.speed * p.pFactor * 35;
+            var tvx = svx;
+            var tvy = -p.speed + svy;
+
+            if (warp > 0.05) {{
+              var stretch = warp * 14;
+              var sx = p.x - tvx * stretch;
+              var sy = p.y - tvy * stretch;
+              var grd = pc.createLinearGradient(p.x, p.y, sx, sy);
+              grd.addColorStop(0, 'rgba(' + p.col + ',' + (alpha * (0.5 + warp * 0.5)) + ')');
+              grd.addColorStop(1, 'rgba(' + p.col + ',0)');
+              pc.beginPath();
+              pc.moveTo(p.x, p.y);
+              pc.lineTo(sx, sy);
+              pc.strokeStyle = grd;
+              pc.lineWidth = p.r * (1 + warp * 2.5);
+              pc.stroke();
+            }} else {{
+              pc.beginPath();
+              pc.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+              pc.fillStyle = 'rgba(' + p.col + ',' + alpha + ')';
+              pc.fill();
+            }}
+
+            p.x += tvx * warpBoost;
+            p.y += tvy * warpBoost;
+            if (p.y < -4) {{ p.y = cvs.height + 4; p.x = Math.random() * cvs.width; }}
+            if (p.x < -4) p.x = cvs.width  + 4;
+            if (p.x > cvs.width + 4) p.x = -4;
+          }}
+
+          // Shooting stars
+          var now = Date.now();
+          if (now >= nextShoot) {{
+            spawnShoot();
+            nextShoot = now + 4000 + Math.random() * 5000;
+          }}
+          for (var s = shoots.length - 1; s >= 0; s--) {{
+            var sh = shoots[s];
+            sh.life -= sh.decay;
+            if (sh.life <= 0) {{ shoots.splice(s, 1); continue; }}
+            var spd2  = Math.sqrt(sh.vx * sh.vx + sh.vy * sh.vy) || 1;
+            var tailX = sh.x - sh.vx / spd2 * sh.len;
+            var tailY = sh.y - sh.vy / spd2 * sh.len;
+            var sg = pc.createLinearGradient(sh.x, sh.y, tailX, tailY);
+            sg.addColorStop(0, 'rgba(255,255,255,' + (sh.life * 0.95) + ')');
+            sg.addColorStop(0.25, 'rgba(200,220,255,' + (sh.life * 0.55) + ')');
+            sg.addColorStop(1, 'rgba(200,220,255,0)');
             pc.beginPath();
-            pc.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            pc.fillStyle = 'rgba(' + p.col + ',' + alpha + ')';
-            pc.fill();
-            p.x += p.vx; p.y += p.vy;
-            if (p.y < -3) {{ p.y = cvs.height + 3; p.x = Math.random() * cvs.width; }}
-            if (p.x < -3) p.x = cvs.width  + 3;
-            if (p.x > cvs.width + 3) p.x = -3;
+            pc.moveTo(sh.x, sh.y);
+            pc.lineTo(tailX, tailY);
+            pc.strokeStyle = sg;
+            pc.lineWidth = 1.5;
+            pc.stroke();
+            sh.x += sh.vx;
+            sh.y += sh.vy;
+            if (sh.x > cvs.width + 120 || sh.y > cvs.height + 120) {{
+              shoots.splice(s, 1);
+            }}
           }}
         }}
 
         requestAnimationFrame(loop);
       }}
       loop();
+
+      // ── Score counter animation ───────────────────────────────────────────
+      setTimeout(function () {{
+        var targets = document.querySelectorAll('.pts-value, td.col-total');
+        targets.forEach(function (el) {{
+          var raw = parseFloat(el.textContent);
+          if (isNaN(raw) || raw === 0) return;
+          var dur = 750, t0 = null;
+          function step (ts) {{
+            if (!t0) t0 = ts;
+            var pct = Math.min((ts - t0) / dur, 1);
+            var ease = 1 - Math.pow(1 - pct, 3);
+            el.textContent = (raw * ease).toFixed(2);
+            if (pct < 1) requestAnimationFrame(step);
+            else el.textContent = raw.toFixed(2);
+          }}
+          requestAnimationFrame(step);
+        }});
+      }}, 120);
+
+      // ── Rank-up glow ──────────────────────────────────────────────────────
+      setTimeout(function () {{
+        document.querySelectorAll('.trend-up').forEach(function (el) {{
+          var row = el.closest('tr');
+          if (row) row.classList.add('rank-up-flash');
+        }});
+      }}, 300);
+
     }})();
   </script>
 </body>
@@ -3485,9 +3635,10 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
 
     ranked = rank_teams(teams, scores)
-    prev_positions = load_previous_positions(out_dir)
+    prev_positions = load_daily_positions(out_dir)
     current_positions = {teams[team_id]["name"]: pos + 1 for pos, team_id in enumerate(ranked)}
     save_positions(current_positions, out_dir)
+    save_daily_positions(current_positions, out_dir)
 
     print("Processing bets...")
     bets_data = load_bets(out_dir, teams)
