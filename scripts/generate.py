@@ -218,7 +218,7 @@ def fetch_project_issues():
                     "creator":   (content.get("author") or {}).get("login") or "",
                 })
 
-            if COIN_LABEL in labels:
+            if COIN_LABEL in labels or "inbox" in labels:
                 coin.append(issue)
 
         if not page_info.get("hasNextPage"):
@@ -2635,10 +2635,8 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       if (!hof.length) {{
         list.innerHTML = '<p class="no-issues">No data yet.</p>';
       }} else {{
-        var medals = ['\U0001F947', '\U0001F948', '\U0001F949'];
         list.innerHTML = hof.map(function(entry, idx) {{
           var isCurrent = entry.week === thisWeek;
-          var medal   = medals[idx] || '';
           var avatars = hofAvatars(entry.winner, 22, 5);
           var others  = entry.all.slice(1).map(function(e) {{
             return '<span class="hof-other-pill">' + e[0] + ' &middot; ' + e[1].toFixed(2) + ' pts</span>';
@@ -2649,7 +2647,6 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
             '</div>' +
             '<div class="hof-wk-body">' +
               '<div class="hof-wk-winner">' +
-                (medal ? '<span style="font-size:1.1rem;line-height:1">' + medal + '</span>' : '') +
                 '<span style="display:flex;gap:3px">' + avatars + '</span>' +
                 '<span class="hof-wk-winner-name">' + entry.winner + '</span>' +
                 '<span class="hof-wk-pts">' + entry.score.toFixed(2) + ' pts</span>' +
