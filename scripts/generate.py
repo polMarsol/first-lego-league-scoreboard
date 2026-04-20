@@ -950,6 +950,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FLL Scoreboard</title>
+  <link rel="icon" type="image/svg+xml" href="fll.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -957,17 +958,17 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
-    /* Dark theme — Linear.app inspired */
     :root, [data-theme="dark"] {{
       --bg:            #0A0A0A;
-      --surface:       #141414;
-      --surface-hover: #1C1C1C;
-      --border:        #222222;
-      --border-subtle: #1A1A1A;
-      --text-primary:  #F5F5F5;
-      --text-secondary:#8A8A8A;
-      --text-muted:    #525252;
-      --accent:        #5E6AD2;
+      --surface:       #111111;
+      --surface-hover: #1A1A1A;
+      --border:        #242424;
+      --border-subtle: #191919;
+      --text-primary:  #F0F0F0;
+      --text-secondary:#8C8C8C;
+      --text-muted:    #4A4A4A;
+      --accent:        #C8873A;
+      --accent-dim:    rgba(200,135,58,0.12);
       --green:         #4CC38A;
       --red:           #E5484D;
       --gold:          #D4A017;
@@ -975,7 +976,6 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       --bronze:        #B87333;
     }}
 
-    /* Light theme */
     [data-theme="light"] {{
       --bg:            #FFFFFF;
       --surface:       #F6F8FA;
@@ -985,7 +985,8 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       --text-primary:  #1F2328;
       --text-secondary:#656D76;
       --text-muted:    #9198A1;
-      --accent:        #0969DA;
+      --accent:        #A0620F;
+      --accent-dim:    rgba(160,98,15,0.10);
       --green:         #1A7F37;
       --red:           #CF222E;
       --gold:          #9A6700;
@@ -1057,13 +1058,20 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       font-size: 0.78rem;
       font-weight: 500;
       cursor: pointer;
-      transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+      transition: border-color 200ms ease, color 200ms ease, background 200ms ease, transform 120ms ease;
       white-space: nowrap;
+      will-change: transform;
+      user-select: none;
     }}
     .theme-btn:hover {{
       border-color: var(--accent);
       color: var(--accent);
-      background: var(--surface-hover);
+      background: var(--accent-dim);
+      transform: translateY(-1px);
+    }}
+    .theme-btn:active {{
+      transform: translateY(0) scale(0.97);
+      transition-duration: 60ms;
     }}
     .theme-btn svg {{
       width: 14px;
@@ -1094,19 +1102,30 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 16px 20px;
+      position: relative;
+      overflow: hidden;
+    }}
+    .stat::before {{
+      content: '';
+      position: absolute;
+      top: 0; left: 20px; right: 20px;
+      height: 2px;
+      background: var(--stat-color, var(--border));
+      border-radius: 0 0 2px 2px;
+      opacity: 0.6;
     }}
     .stat .value {{
       font-family: 'Barlow Condensed', sans-serif;
       font-size: 2rem;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--stat-color, var(--text-primary));
       font-variant-numeric: tabular-nums;
       line-height: 1;
     }}
     .stat .label {{
       font-size: 0.68rem;
       color: var(--text-muted);
-      margin-top: 6px;
+      margin-top: 7px;
       text-transform: uppercase;
       letter-spacing: 0.09em;
     }}
@@ -1169,11 +1188,22 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       font-weight: 700;
       color: var(--text-muted);
       min-width: 20px;
-      text-align: right;
+      text-align: center;
+      line-height: 1;
     }}
-    .rank-badge.rank-1 {{ color: var(--gold); }}
-    .rank-badge.rank-2 {{ color: var(--silver); }}
-    .rank-badge.rank-3 {{ color: var(--bronze); }}
+    .rank-badge.rank-1,
+    .rank-badge.rank-2,
+    .rank-badge.rank-3 {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      font-size: 0.78rem;
+    }}
+    .rank-badge.rank-1 {{ background: rgba(212,160,23,0.18); color: var(--gold); box-shadow: 0 0 0 1px rgba(212,160,23,0.35); }}
+    .rank-badge.rank-2 {{ background: rgba(160,174,192,0.14); color: var(--silver); box-shadow: 0 0 0 1px rgba(160,174,192,0.30); }}
+    .rank-badge.rank-3 {{ background: rgba(184,115,51,0.14); color: var(--bronze); box-shadow: 0 0 0 1px rgba(184,115,51,0.30); }}
 
     /* Trend indicators */
     .trend {{
@@ -1369,22 +1399,32 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       font-family: 'Barlow', sans-serif;
       font-size: 0.78rem; font-weight: 500;
       cursor: pointer;
-      transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+      transition: border-color 200ms ease, color 200ms ease, background 200ms ease, transform 120ms ease, box-shadow 200ms ease;
       white-space: nowrap;
+      will-change: transform;
+      user-select: none;
     }}
-    .chart-btn:hover {{ border-color: var(--accent); color: var(--accent); background: var(--surface-hover); }}
+    .chart-btn:hover {{ border-color: var(--accent); color: var(--accent); background: var(--accent-dim); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.25); }}
+    .chart-btn:active {{ transform: translateY(0) scale(0.97); box-shadow: none; transition-duration: 60ms; }}
     .chart-btn svg {{ width: 14px; height: 14px; flex-shrink: 0; }}
 
     /* Modal overlay */
     .modal-overlay {{
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.65);
+      background: rgba(0,0,0,0);
       z-index: 200;
-      display: none;
+      display: flex;
       align-items: center; justify-content: center;
       padding: 20px;
+      visibility: hidden;
+      pointer-events: none;
+      transition: background 280ms ease-out;
     }}
-    .modal-overlay.open {{ display: flex; }}
+    .modal-overlay.open {{
+      visibility: visible;
+      pointer-events: auto;
+      background: rgba(0,0,0,0.65);
+    }}
     .modal-box {{
       background: var(--surface);
       border: 1px solid var(--border);
@@ -1393,6 +1433,13 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       max-height: 90vh;
       display: flex; flex-direction: column;
       overflow: hidden;
+      transform: translateY(16px) scale(0.98);
+      opacity: 0;
+      transition: transform 300ms cubic-bezier(0.16,1,0.3,1), opacity 280ms ease-out;
+    }}
+    .modal-overlay.open .modal-box {{
+      transform: translateY(0) scale(1);
+      opacity: 1;
     }}
     .modal-header {{
       display: flex; align-items: center; justify-content: space-between;
@@ -1621,10 +1668,10 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       display: flex; align-items: center; gap: 12px;
       padding: 11px 20px;
       border-bottom: 1px solid var(--border-subtle);
-      transition: background 150ms ease;
+      transition: background 150ms ease, padding-left 150ms ease;
     }}
     .issue-row:last-child {{ border-bottom: none; }}
-    .issue-row:hover {{ background: var(--surface-hover); }}
+    .issue-row:hover {{ background: var(--surface-hover); padding-left: 24px; }}
     .issue-num {{ font-size: 0.72rem; color: var(--text-muted); min-width: 40px; flex-shrink: 0; font-variant-numeric: tabular-nums; }}
     .issue-title {{ flex: 1; min-width: 0; }}
     .issue-title a {{ color: var(--text-primary); text-decoration: none; font-size: 0.85rem; font-weight: 500; }}
@@ -1649,11 +1696,14 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       border: none; border-radius: 5px;
       font-family: 'Barlow', sans-serif; font-size: 0.78rem; font-weight: 600;
       cursor: pointer; white-space: nowrap;
-      transition: opacity 150ms ease, background 150ms ease;
+      transition: background 200ms ease, transform 120ms ease, box-shadow 200ms ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      will-change: transform;
     }}
-    .claim-btn:hover {{ opacity: 0.85; }}
-    .claim-btn:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; opacity: 1; }}
-    .claim-btn.claimed {{ background: var(--green); cursor: default; }}
+    .claim-btn:hover {{ background: color-mix(in srgb, var(--accent) 85%, white); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(200,135,58,0.30); }}
+    .claim-btn:active {{ transform: translateY(0) scale(0.97); box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition-duration: 60ms; }}
+    .claim-btn:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; transform: none; box-shadow: none; }}
+    .claim-btn.claimed {{ background: var(--green); cursor: default; transform: none; box-shadow: none; }}
     .reserve-empty {{
       text-align: center; padding: 40px 20px;
       color: var(--text-muted); font-size: 0.85rem;
@@ -1673,9 +1723,10 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       display: flex;
       align-items: center;
       gap: 16px;
-      transition: border-color 200ms ease, background 150ms ease;
+      transition: border-color 200ms ease, background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+      will-change: transform;
     }}
-    .hof-card:hover {{ border-color: var(--gold); background: var(--surface-hover); }}
+    .hof-card:hover {{ border-color: var(--gold); background: var(--surface-hover); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(212,160,23,0.12); }}
     [data-theme="light"] .hof-card {{ border-color: rgba(154,103,0,0.2); }}
     [data-theme="light"] .hof-card:hover {{ border-color: var(--gold); }}
     .hof-label {{
@@ -1791,8 +1842,14 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       font-family: 'Barlow', sans-serif; font-size: 0.88rem;
       transition: border-color 150ms ease;
     }}
-    .bet-input:focus, .bet-select:focus {{
-      outline: none; border-color: var(--accent);
+    .bet-input:focus, .bet-select:focus,
+    .filter-select:focus,
+    .suggest-textarea:focus,
+    .suggest-repo-select:focus {{
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+      transition: border-color 150ms ease, box-shadow 150ms ease;
     }}
     .bet-row {{ display: flex; gap: 12px; }}
     .bet-row .bet-field {{ flex: 1; }}
@@ -1814,16 +1871,19 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       letter-spacing: 0.08em; color: var(--text-muted);
     }}
     .bet-submit {{
-      width: 100%; padding: 10px;
-      background: var(--gold); color: #000;
+      width: 100%; padding: 11px;
+      background: var(--gold); color: #0A0A0A;
       border: none; border-radius: 7px;
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1rem; font-weight: 700; letter-spacing: 0.04em;
-      cursor: pointer; transition: opacity 150ms ease;
-      text-transform: uppercase;
+      font-size: 1rem; font-weight: 700; letter-spacing: 0.05em;
+      cursor: pointer; text-transform: uppercase;
+      transition: background 200ms ease, transform 120ms ease, box-shadow 200ms ease;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 4px 12px rgba(212,160,23,0.20);
+      will-change: transform;
     }}
-    .bet-submit:hover {{ opacity: 0.88; }}
-    .bet-submit:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; opacity: 1; }}
+    .bet-submit:hover {{ background: color-mix(in srgb, var(--gold) 90%, white); transform: translateY(-1px); box-shadow: 0 3px 0 rgba(0,0,0,0.35), 0 6px 16px rgba(212,160,23,0.30); }}
+    .bet-submit:active {{ transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,0.35), 0 2px 6px rgba(212,160,23,0.15); transition-duration: 60ms; }}
+    .bet-submit:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; transform: none; box-shadow: none; }}
     .bet-notice {{
       font-size: 0.75rem; color: var(--text-muted);
       margin-top: 8px; text-align: center;
@@ -1890,10 +1950,14 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       background: var(--accent); color: #fff;
       border: none; border-radius: 8px; font-family: 'Barlow', sans-serif;
       font-size: 0.85rem; font-weight: 700; cursor: pointer;
-      transition: opacity 150ms ease; white-space: nowrap;
+      transition: background 200ms ease, transform 120ms ease, box-shadow 200ms ease;
+      white-space: nowrap;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      will-change: transform;
     }}
-    .suggest-run-btn:hover {{ opacity: 0.88; }}
-    .suggest-run-btn:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; opacity: 1; }}
+    .suggest-run-btn:hover {{ background: color-mix(in srgb, var(--accent) 85%, white); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(200,135,58,0.30); }}
+    .suggest-run-btn:active {{ transform: scale(0.98); box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition-duration: 60ms; }}
+    .suggest-run-btn:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; transform: none; box-shadow: none; }}
     .suggest-status {{
       font-size: 0.8rem; color: var(--text-muted); text-align: center; min-height: 20px;
     }}
@@ -1991,15 +2055,15 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
   </header>
   <div class="container">
     <div class="stats">
-      <div class="stat">
+      <div class="stat" style="--stat-color:var(--text-secondary)">
         <div class="value">{len(teams)}</div>
         <div class="label">Teams</div>
       </div>
-      <div class="stat">
+      <div class="stat" style="--stat-color:var(--green)">
         <div class="value">{total_done}</div>
         <div class="label">Done Issues</div>
       </div>
-      <div class="stat">
+      <div class="stat" style="--stat-color:var(--accent)">
         <div class="value">{total_sp:.1f}</div>
         <div class="label">Story Points</div>
       </div>
@@ -3747,7 +3811,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       glow.style.cssText = [
         'position:fixed', 'pointer-events:none', 'z-index:1',
         'width:520px', 'height:520px', 'border-radius:50%',
-        'background:radial-gradient(circle,rgba(94,106,210,0.09) 0%,transparent 68%)',
+        'background:radial-gradient(circle,rgba(200,135,58,0.07) 0%,transparent 68%)',
         'transform:translate(-50%,-50%)', 'transition:opacity 400ms ease',
         'will-change:left,top', 'opacity:0'
       ].join(';');
