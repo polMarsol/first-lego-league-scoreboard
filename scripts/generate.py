@@ -1843,9 +1843,7 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       transition: border-color 150ms ease;
     }}
     .bet-input:focus, .bet-select:focus,
-    .filter-select:focus,
-    .suggest-textarea:focus,
-    .suggest-repo-select:focus {{
+    .filter-select:focus {{
       outline: none;
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--accent-dim);
@@ -1932,71 +1930,6 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
     .bet-hist-desc {{ color: var(--text-primary); font-weight: 500; margin-bottom: 3px; }}
     .bet-hist-meta {{ font-size: 0.72rem; color: var(--text-muted); }}
 
-    /* ── AI Suggest modal ─────────────────────────────────────────────────── */
-    .suggest-body {{ padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }}
-    .suggest-prompt-row {{ display: flex; gap: 10px; align-items: flex-end; }}
-    .suggest-textarea {{
-      flex: 1; resize: none; height: 60px;
-      background: var(--surface-hover); border: 1px solid var(--border);
-      border-radius: 8px; color: var(--text-primary);
-      font-family: 'Barlow', sans-serif; font-size: 0.85rem;
-      padding: 9px 12px; outline: none;
-      transition: border-color 150ms ease;
-    }}
-    .suggest-textarea:focus {{ border-color: var(--accent); }}
-    .suggest-textarea::placeholder {{ color: var(--text-muted); }}
-    .suggest-run-btn {{
-      flex-shrink: 0; padding: 0 18px; height: 60px;
-      background: var(--accent); color: #fff;
-      border: none; border-radius: 8px; font-family: 'Barlow', sans-serif;
-      font-size: 0.85rem; font-weight: 700; cursor: pointer;
-      transition: background 200ms ease, transform 120ms ease, box-shadow 200ms ease;
-      white-space: nowrap;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-      will-change: transform;
-    }}
-    .suggest-run-btn:hover {{ background: color-mix(in srgb, var(--accent) 85%, white); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(200,135,58,0.30); }}
-    .suggest-run-btn:active {{ transform: scale(0.98); box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition-duration: 60ms; }}
-    .suggest-run-btn:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; transform: none; box-shadow: none; }}
-    .suggest-status {{
-      font-size: 0.8rem; color: var(--text-muted); text-align: center; min-height: 20px;
-    }}
-    .suggest-cards {{ display: flex; flex-direction: column; gap: 12px; }}
-    .suggest-card {{
-      background: var(--surface-hover); border: 1px solid var(--border);
-      border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
-      transition: border-color 150ms ease;
-    }}
-    .suggest-card:hover {{ border-color: var(--accent); }}
-    .suggest-card-header {{ display: flex; align-items: flex-start; gap: 10px; }}
-    .suggest-card-title {{ flex: 1; font-weight: 600; font-size: 0.9rem; color: var(--text-primary); }}
-    .suggest-sp-badge {{
-      flex-shrink: 0; padding: 2px 9px; border-radius: 8px; font-size: 0.7rem; font-weight: 700;
-      background: color-mix(in srgb, var(--accent) 15%, transparent);
-      color: var(--accent); border: 1px solid var(--accent);
-    }}
-    .suggest-card-body {{
-      font-size: 0.78rem; color: var(--text-secondary); line-height: 1.55;
-      max-height: 80px; overflow-y: auto; white-space: pre-wrap;
-    }}
-    .suggest-card-footer {{ display: flex; gap: 8px; align-items: center; margin-top: 4px; }}
-    .suggest-repo-select {{
-      flex: 1; background: var(--surface-hover); border: 1px solid var(--border);
-      border-radius: 6px; color: var(--text-primary);
-      font-family: 'Barlow', sans-serif; font-size: 0.8rem; padding: 5px 8px; outline: none;
-    }}
-    .suggest-create-btn {{
-      flex-shrink: 0; padding: 5px 14px; border-radius: 6px;
-      background: var(--green); color: #000; border: none;
-      font-family: 'Barlow', sans-serif; font-size: 0.8rem; font-weight: 700;
-      cursor: pointer; transition: opacity 150ms ease;
-    }}
-    .suggest-create-btn:hover {{ opacity: 0.85; }}
-    .suggest-create-btn:disabled {{ background: var(--border); color: var(--text-muted); cursor: default; opacity: 1; }}
-    .suggest-hint {{
-      font-size: 0.75rem; color: var(--text-muted); text-align: center; padding-bottom: 4px;
-    }}
-
     @media (max-width: 900px) {{
       .stats {{ grid-template-columns: repeat(3, 1fr); }}  /* already 3, no change needed */
     }}
@@ -2019,13 +1952,6 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       </div>
       <button class="chart-btn" onclick="openBricksLeaderboard()" aria-label="Bricks betting leaderboard" style="color:var(--gold);border-color:var(--gold)">
         {BRICK_ICON} Bricks
-      </button>
-      <button class="chart-btn" onclick="openSuggest()" aria-label="AI issue suggestions" style="color:var(--accent);border-color:var(--accent)">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.3 6L15 17H9l-.3-2.1A7 7 0 0 1 12 2z"/>
-          <path d="M9 21h6"/><path d="M12 17v4"/>
-        </svg>
-        AI Issues
       </button>
       <button class="chart-btn" onclick="openReserve()" aria-label="Reserve an issue">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2412,42 +2338,6 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
 
         <button class="bet-submit" id="bet-submit-btn" onclick="submitBet()" disabled>Sign in to place bet</button>
         <div class="bet-notice" id="bet-notice"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- AI Issue Suggest modal -->
-  <div id="suggest-modal" class="modal-overlay" onclick="if(event.target===this)closeSuggest()">
-    <div class="modal-box" style="max-width:580px;max-height:90vh;overflow-y:auto">
-      <div class="modal-header">
-        <span class="modal-title">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-               style="width:16px;height:16px;color:var(--accent)">
-            <path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.3 4.7-3.3 6L15 17H9l-.3-2.1A7 7 0 0 1 12 2z"/>
-            <path d="M9 21h6"/><path d="M12 17v4"/>
-          </svg>
-          AI Issue Suggestions
-        </span>
-        <button class="modal-close" onclick="closeSuggest()" aria-label="Close">&times;</button>
-      </div>
-      <div class="auth-bar" id="suggest-auth-bar" style="display:none">
-        <span class="auth-notice">Sign in to generate and create issues</span>
-        <button class="gh-login-btn" onclick="loginWithGitHubForSuggest()">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.268 2.75 1.026A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.026 2.747-1.026.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
-          </svg>
-          Sign in with GitHub
-        </button>
-      </div>
-      <div class="suggest-body">
-        <div class="suggest-prompt-row">
-          <textarea class="suggest-textarea" id="suggest-input"
-            placeholder="Optional: describe what kind of issues you want (e.g. 'backend API improvements', 'testing', 'documentation')&#10;Leave empty for general suggestions."></textarea>
-          <button class="suggest-run-btn" id="suggest-run-btn" onclick="runSuggest()">✨ Suggest</button>
-        </div>
-        <div class="suggest-status" id="suggest-status"></div>
-        <div class="suggest-cards" id="suggest-cards"></div>
-        <div class="suggest-hint" id="suggest-hint">Powered by GitHub Models (gpt-4o-mini) · Free with your GitHub account</div>
       </div>
     </div>
   </div>
@@ -3010,7 +2900,6 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
       localStorage.removeItem('oauth_return');
       if (ret === 'reserve') openReserve();
       else if (ret === 'bets') openPlaceBet();
-      else if (ret === 'suggest') openSuggest();
     }}
 
     function openReserve() {{
@@ -3586,180 +3475,6 @@ def generate_html(teams, scores, all_issues, coin_issues, generated_at, ranked, 
         document.getElementById('bet-notice').textContent = 'Error: ' + err.message;
         console.error(err);
       }}
-    }}
-
-    // ── AI Issue Suggestions ───────────────────────────────────────────────────
-    var suggestIssues = [];
-
-    function openSuggest() {{
-      var token = getGhToken();
-      document.getElementById('suggest-auth-bar').style.display = token ? 'none' : 'flex';
-      document.getElementById('suggest-run-btn').disabled = !token;
-      document.getElementById('suggest-modal').classList.add('open');
-    }}
-    function closeSuggest() {{
-      document.getElementById('suggest-modal').classList.remove('open');
-    }}
-    function loginWithGitHubForSuggest() {{
-      localStorage.setItem('oauth_return', 'suggest');
-      loginWithGitHub();
-    }}
-
-    async function runSuggest() {{
-      var token = getGhToken();
-      if (!token) return;
-      var btn = document.getElementById('suggest-run-btn');
-      var statusEl = document.getElementById('suggest-status');
-      var cardsEl  = document.getElementById('suggest-cards');
-      btn.disabled = true;
-      btn.textContent = '⏳ Thinking…';
-      statusEl.textContent = 'Calling GitHub Models API…';
-      cardsEl.innerHTML = '';
-      suggestIssues = [];
-
-      // Build context for the prompt
-      var rankLines = TEAMS.map(function(t, i) {{
-        var s = TEAM_SCORES[t] || {{}};
-        return (i+1) + '. ' + t + ' — ' + ((s.creation||0)+(s.implementation||0)).toFixed(2) + ' pts';
-      }}).join('\\n');
-
-      var openTitles = OPEN_ISSUES.slice(0, 30).map(function(i) {{ return '- ' + i.title + ' [' + i.repo + ']'; }}).join('\\n');
-      var doneTitles = ISSUES.slice(-20).map(function(i) {{ return '- ' + i.title; }}).join('\\n');
-      var repos = [...new Set(OPEN_ISSUES.map(function(i){{return i.repo;}}).filter(Boolean))];
-
-      var userText = (document.getElementById('suggest-input').value || '').trim();
-      var userRequest = userText || 'Suggest 3 new issues for any team, diverse in topic and difficulty.';
-
-      var systemPrompt = 'You are an assistant for a software architecture course at Universitat de Lleida (UdL). ' +
-        'Teams work on GitHub repos in the UdL-EPS-SoftArch-Igualada org. ' +
-        'Suggest specific, implementable GitHub issues suitable for software architecture students. ' +
-        'Always respond with valid JSON only, no extra text.';
-
-      var userPrompt = 'Current rankings:\\n' + rankLines +
-        '\\n\\nExisting open issues (DO NOT duplicate any of these):\\n' + (openTitles || 'none') +
-        '\\n\\nRecently completed issues (DO NOT duplicate any of these either):\\n' + (doneTitles || 'none') +
-        '\\n\\nKnown repos: ' + (repos.join(', ') || ORG) +
-        '\\n\\nUser request: ' + userRequest +
-        '\\n\\nReturn JSON with exactly 3 issues in this structure:' +
-        '{{"issues":[{{"title":"[PREFIX]: Short imperative title",' +
-        '"feature_description":"2-3 sentences describing the problem and why it matters",' +
-        '"we_need_to":["Specific action 1","Specific action 2","Specific action 3"],' +
-        '"definition_of_done":["Measurable criteria 1","Measurable criteria 2","Measurable criteria 3"],' +
-        '"story_points":1,"repo":"repo-name","type":"Feature"}}]}}' +
-        '\\n\\nRules: story_points must be one of 0.25, 0.5, 1, 2, 3, 4 (no other values).' +
-        ' title PREFIX must be one of: [Feat], [Bug], [Refactor], [UX], [BE], [FE], [API], [DB], [Test], [Docs].' +
-        ' Use [Feat] for new features, [Bug] for bug fixes, [Refactor] for refactoring, others for area-specific work.' +
-        ' type must be one of: Feature, Bug, Refactor.' +
-        ' repo must be one of the known repos.';
-
-      try {{
-        var resp = await fetch('https://models.inference.ai.azure.com/chat/completions', {{
-          method: 'POST',
-          headers: {{
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json'
-          }},
-          body: JSON.stringify({{
-            model: 'gpt-4o-mini',
-            messages: [
-              {{ role: 'system', content: systemPrompt }},
-              {{ role: 'user',   content: userPrompt   }}
-            ],
-            response_format: {{ type: 'json_object' }},
-            temperature: 0.75,
-            max_tokens: 1200
-          }})
-        }});
-
-        if (!resp.ok) {{
-          var errData = await resp.json().catch(function(){{ return {{}}; }});
-          throw new Error(errData.error && errData.error.message ? errData.error.message : 'HTTP ' + resp.status);
-        }}
-
-        var data = await resp.json();
-        var raw  = data.choices[0].message.content;
-        var parsed = JSON.parse(raw);
-        suggestIssues = parsed.issues || parsed.suggestions || [];
-        if (!suggestIssues.length) throw new Error('No issues returned');
-
-        statusEl.textContent = suggestIssues.length + ' suggestions generated:';
-        renderSuggestCards(repos);
-      }} catch(err) {{
-        statusEl.textContent = 'Error: ' + err.message;
-        if (err.message.indexOf('401') !== -1 || err.message.toLowerCase().indexOf('unauthorized') !== -1) {{
-          statusEl.textContent += ' — GitHub Models requires a token with access. Try logging out and back in.';
-        }}
-        console.error(err);
-      }} finally {{
-        btn.disabled = false;
-        btn.textContent = '✨ Suggest';
-      }}
-    }}
-
-    function renderSuggestCards(repos) {{
-      var cardsEl = document.getElementById('suggest-cards');
-      cardsEl.innerHTML = suggestIssues.map(function(issue, idx) {{
-        var repoOpts = repos.map(function(r) {{
-          var sel = r === issue.repo ? ' selected' : '';
-          return '<option value="' + r + '"' + sel + '>' + r + '</option>';
-        }}).join('');
-        if (!repos.length) repoOpts = '<option value="">— select repo —</option>';
-        var preview = (issue.feature_description || issue.body || '');
-        var donePreview = (issue.definition_of_done || []).slice(0,2).map(function(l){{return '✓ '+l;}}).join('<br>');
-        var typeTag = issue.type ? '<span style="font-size:0.68rem;padding:1px 7px;border-radius:6px;background:color-mix(in srgb,var(--text-muted) 15%,transparent);color:var(--text-muted)">' + escHtml(issue.type) + '</span>' : '';
-        return '<div class="suggest-card">' +
-          '<div class="suggest-card-header">' +
-            '<span class="suggest-card-title">' + escHtml(issue.title) + '</span>' +
-            '<span class="suggest-sp-badge">' + issue.story_points + ' SP</span>' +
-          '</div>' +
-          (typeTag ? '<div style="margin-bottom:4px">' + typeTag + '</div>' : '') +
-          '<div class="suggest-card-body" style="margin-bottom:4px">' + escHtml(preview) + '</div>' +
-          (donePreview ? '<div style="font-size:0.73rem;color:var(--green);line-height:1.6;margin-bottom:6px">' + donePreview + '</div>' : '') +
-          '<div class="suggest-card-footer">' +
-            '<select class="suggest-repo-select" id="suggest-repo-' + idx + '">' + repoOpts + '</select>' +
-            '<button class="suggest-create-btn" onclick="createSuggestedIssue(' + idx + ')">Open in GitHub ↗</button>' +
-          '</div>' +
-        '</div>';
-      }}).join('');
-    }}
-
-    // Template filenames and field IDs (hardcoded — same across all repo templates)
-    var SP_LABELS = {{
-      0.25: '0.25 story points (15 minutes)',
-      0.5:  '0.5 story points (30 minutes)',
-      1:    '1 story point (1 hour)',
-      2:    '2 story points (2 hours)',
-      3:    '3 story points (3 hours)',
-      4:    '4 story points (4 hours)',
-    }};
-    var TYPE_TO_TPL = {{ feature: '1-feature.yml', bug: '2-bug.yml', refactor: '3-refactor.yml' }};
-
-    function createSuggestedIssue(idx) {{
-      var issue = suggestIssues[idx];
-      var repo  = document.getElementById('suggest-repo-' + idx).value;
-      if (!repo) {{ alert('Select a repo first'); return; }}
-
-      var typeKey  = (issue.type || 'feature').toLowerCase();
-      var tplFile  = TYPE_TO_TPL[typeKey] || TYPE_TO_TPL['feature'];
-      var spLabel  = SP_LABELS[issue.story_points] || (issue.story_points + ' story points');
-
-      // Build description field: narrative + "We need to" list
-      var needLines = (issue.we_need_to || []).map(function(l) {{ return '- ' + l; }}).join('\\n');
-      var description = (issue.feature_description || issue.body || '') +
-        (needLines ? '\\n\\nWe need to:\\n' + needLines : '');
-
-      // Build definition of done field
-      var dod = (issue.definition_of_done || []).map(function(l) {{ return '- ' + l; }}).join('\\n') || '- TBD';
-
-      // Build URL with all fields pre-filled — GitHub Issue Forms supports ?field_id=value
-      var url = 'https://github.com/' + ORG + '/' + repo + '/issues/new' +
-        '?template='       + encodeURIComponent(tplFile) +
-        '&title='          + encodeURIComponent(issue.title) +
-        '&description='    + encodeURIComponent(description) +
-        '&dod='            + encodeURIComponent(dod) +
-        '&time-estimation='+ encodeURIComponent(spLabel);
-
-      window.open(url, '_blank');
     }}
 
     function escHtml(s) {{
