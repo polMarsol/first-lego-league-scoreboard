@@ -2,7 +2,7 @@
   "member_balances": {
     "Janics22": 100,
     "ikeerwp": 100,
-    "polMarsol": 100,
+    "polMarsol": 0.0,
     "MartiFarranC": 100,
     "oRioL-04": 100,
     "kirklan34": 100,
@@ -21,7 +21,25 @@
     "Niltm35": 100,
     "espitijungle": 100
   },
-  "active_bets": [],
+  "active_bets": [
+    {
+      "issue_number": 5,
+      "issue_url": "https://github.com/polMarsol/first-lego-league-scoreboard/issues/5",
+      "bet_type": "over_under",
+      "placed_by": "polMarsol",
+      "stake": 100.0,
+      "odds": 9.0,
+      "potential_payout": 900.0,
+      "deadline": "2026-04-24",
+      "params": {
+        "subject_team": "Janics22 & ikeerwp",
+        "metric": "issues_implemented",
+        "direction": "under",
+        "threshold": 4
+      },
+      "placed_at": "2026-04-23T08:19:12.927Z"
+    }
+  ],
   "resolved_bets": [
     {
       "issue_number": 1,
